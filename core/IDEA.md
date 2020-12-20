@@ -10,5 +10,6 @@
 单行注释:Ctrl+/
 多行注释:Ctrl+shift+/
 格式化:Ctrl+Atl+L
+自动缩进:Ctrl+Atl+I
 导包/异常:Atl+enter
 ```
