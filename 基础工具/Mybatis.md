@@ -112,9 +112,9 @@ INSERT INTO myuser(`id`,`name`,`pwd`) VALUES
             <transactionManager type="JDBC"/>
             <dataSource type="POOLED">
                 <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
-<!--                <property name="url" value="jdbc:mysql:://localhost:3306/mybatis?serverTimezone=UTC;useSSL=false&amp;useUnicode=true&amp;characterEncoding=UTF-8"/>-->
-<!--                <property name="url" value="jdbc:mysql:://localhost:3306/mybatis?serverTimezone=Asia/Shanghai"/>-->
-<!--                <property name="url" value="jdbc:mysql://localhost:3306/mail_server?useSSL=false&amp;serverTimezone=UTC"/>-->
+<!--<property name="url" value="jdbc:mysql:://localhost:3306/mybatis?serverTimezone=UTC;useSSL=false&amp;useUnicode=true&amp;characterEncoding=UTF-8"/>-->
+<!--<property name="url" value="jdbc:mysql:://localhost:3306/mybatis?serverTimezone=Asia/Shanghai"/>-->
+<!--<property name="url" value="jdbc:mysql://localhost:3306/mail_server?useSSL=false&amp;serverTimezone=UTC"/>-->
                 <property name="url" value="jdbc:mysql://localhost:3306/mybatis?useUnicode=true&amp;characterEncoding=utf8&amp;serverTimezone=GMT"/>
                 <property name="username" value="root"/>
                 <property name="password" value="123456"/>
@@ -251,7 +251,7 @@ public interface MyuserDao {
 <!--namespace绑定一个对应的Dao/Mapper接口-->
 <mapper namespace="com.kai.dao.MyuserDao">
 
-<!--查询语句,id对应方法名字,resultType是返回一个结果(Myuser)-->
+    <!--查询语句,id对应方法名字,resultType是返回一个结果(Myuser)-->
     <select id="getUserList" resultType="com.kai.pojo.Myuser">
         select * from mybatis.myuser;
     </select>
@@ -274,29 +274,20 @@ public class MyuserDaoTest {
 
     @Test
     public void test(){
-
         //获得SqlSession对象
-
         SqlSession sqlSession = MybatisUtils.getSqlSession();
-
         //方式一:getMapper
         MyuserDao mapper = sqlSession.getMapper(MyuserDao.class);
         List<Myuser> userList = mapper.getUserList();
-
-//        //方式二:
-//        List<Myuser>  userList= sqlSession.selectList("com.kai.dao.MyuserDao.getUserList");
-
-
+        //方式二:
+        //List<Myuser>  userList= sqlSession.selectList("com.kai.dao.MyuserDao.getUserList");
         for (Myuser myuser : userList) {
             System.out.println(myuser);
         }
-
         //关闭SqlSession
         sqlSession.close();
-
     }
 }
-
 ```
 
 测试结果
@@ -317,9 +308,11 @@ public class MyuserDaoTest {
 
 * 每一个`Mapper.xml`都需要在`Mybatis`核心配置文件中注册
 
-  *     <mappers>
+  *     ```xml
+        <mappers>
             <mapper resource="com/kai/dao/MyuserMapper.xml"/>
         </mappers>
+        ```
 
 * `java.lang.Exceptions`初始化失败(`Maven`资源过滤问题)
 
@@ -330,29 +323,29 @@ public class MyuserDaoTest {
   * 第二种解决方法:在`Maven`配置文件中添加以下代码
 
     * ```xml
-          <build>
-              <resources>
+      <build>
+          <resources>
       
-                  <resource>
-                      <directory>src/main/resources</directory>
-                      <includes>
-                          <include>**/*.properties</include>
-                          <include>**/*.xml</include>
-                      </includes>
-                      <filtering>true</filtering>
-                  </resource>
+              <resource>
+                  <directory>src/main/resources</directory>
+                  <includes>
+                      <include>**/*.properties</include>
+                      <include>**/*.xml</include>
+                  </includes>
+                  <filtering>true</filtering>
+              </resource>
       
-                  <resource>
-                      <directory>src/main/java</directory>
-                      <includes>
-                          <include>**/*.properties</include>
-                          <include>**/*.xml</include>
-                      </includes>
-                      <filtering>true</filtering>
-                  </resource>
+              <resource>
+                  <directory>src/main/java</directory>
+                  <includes>
+                      <include>**/*.properties</include>
+                      <include>**/*.xml</include>
+                  </includes>
+                  <filtering>true</filtering>
+              </resource>
       
-              </resources>
-          </build>
+          </resources>
+      </build>
       ```
 
 * Error:java: 不再支持源选项 5。请使用 6 或更高版本
@@ -416,62 +409,115 @@ public interface MyuserMapper {
 ## 测试类
 
 ```java
-    @Test
-    public void test() {
-        //获得SqlSession对象
-        SqlSession sqlSession = MybatisUtils.getSqlSession();
-        //方式一:getMapper
-        MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
-        List<Myuser> userList = mapper.getUserList();
-//        //方式二:
-//        List<Myuser>  userList= sqlSession.selectList("com.kai.dao.MyuserDao.getUserList");
-        for (Myuser myuser : userList) {
-            System.out.println(myuser);
-        }
-        //关闭SqlSession
-        sqlSession.close();
+@Test
+public void test() {
+    //获得SqlSession对象
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    //方式一:getMapper
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    List<Myuser> userList = mapper.getUserList();
+    //方式二:
+    //List<Myuser>  userList= sqlSession.selectList("com.kai.dao.MyuserDao.getUserList");
+    for (Myuser myuser : userList) {
+        System.out.println(myuser);
     }
-    @Test
-    public void getuserbyid() {
-        SqlSession sqlSession = MybatisUtils.getSqlSession();
-        MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
-        Myuser userById = mapper.getUserById(1);
-        System.out.println(userById);
-        sqlSession.close();
+    //关闭SqlSession
+    sqlSession.close();
+}
+@Test
+public void getuserbyid() {
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    Myuser userById = mapper.getUserById(1);
+    System.out.println(userById);
+    sqlSession.close();
+}
+//增删改需要提交事务
+@Test
+public void adduser() {
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    int leo = mapper.addUser(new Myuser(4, "leo", "111111"));
+    if (leo > 0) {
+        System.out.println("ok");
     }
-    //增删改需要提交事务
-    @Test
-    public void adduser() {
-        SqlSession sqlSession = MybatisUtils.getSqlSession();
-        MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
-        int leo = mapper.addUser(new Myuser(4, "leo", "111111"));
-        if (leo > 0) {
-            System.out.println("ok");
-        }
-        //提交事务
-        sqlSession.commit();
-        sqlSession.close();
+    //提交事务
+    sqlSession.commit();
+    sqlSession.close();
+}
+@Test
+public void updateuser(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    int kklt = mapper.updateUser(new Myuser(4, "kklt", "666666"));
+    if(kklt>0){
+        System.out.println("ok");
     }
-    @Test
-    public void updateuser(){
-        SqlSession sqlSession = MybatisUtils.getSqlSession();
-        MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
-        int kklt = mapper.updateUser(new Myuser(4, "kklt", "666666"));
-        if(kklt>0){
-            System.out.println("ok");
-        }
-        sqlSession.commit();
-        sqlSession.close();
+    sqlSession.commit();
+    sqlSession.close();
+}
+@Test
+public void deleteuser(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    int i = mapper.deleteUser(4);
+    if(i>0){
+        System.out.println("ok");
     }
-    @Test
-    public void deleteuser(){
-        SqlSession sqlSession = MybatisUtils.getSqlSession();
-        MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
-        int i = mapper.deleteUser(4);
-        if(i>0){
-            System.out.println("ok");
-        }
-        sqlSession.commit();
-        sqlSession.close();
-    }
+    sqlSession.commit();
+    sqlSession.close();
+}
 ```
+
+# 配置解析
+
+```xml
+configuration（配置）
+properties（属性）
+settings（设置）
+typeAliases（类型别名）
+typeHandlers（类型处理器）
+objectFactory（对象工厂）
+plugins（插件）
+environments（环境配置）
+environment（环境变量）
+transactionManager（事务管理器）
+dataSource（数据源）
+databaseIdProvider（数据库厂商标识）
+mappers（映射器）
+```
+
+## properties
+
+```properties
+#db.properties
+driver=com.mysql.cj.jdbc.Driver
+url=jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+username=root
+password=123456
+```
+
+```xml
+<properties resource="db.properties"/>
+<!--  优先使用properties配置文件
+<properties resource="db.properties">
+	<property name="username" value="root"/>
+	<property name="pwd"	value="111111"/>
+</properties>
+-->
+<environments default="development">
+    <environment id="development">
+        <transactionManager type="JDBC"/>
+        <dataSource type="POOLED">
+            <property name="driver" value="${driver}"/>
+            <property name="url" value="${url}"/>
+            <property name="username" value="${username}"/>
+            <property name="password" value="${password}"/>
+        </dataSource>
+    </environment>
+</environments>
+```
+
+* 可以直接引入外部资源文件
+* 可以在其中增加一些属性配置
+* 如果有两个文件同一字段,优先使用外部配置文件
