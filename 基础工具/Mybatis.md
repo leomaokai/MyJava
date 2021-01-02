@@ -471,6 +471,10 @@ public void deleteuser(){
 
 # 配置解析
 
+![image-20210102165655258](Mybatis.assets/image-20210102165655258.png)
+
+配置顺序
+
 ```xml
 configuration（配置）
 properties（属性）
@@ -521,3 +525,139 @@ password=123456
 * 可以直接引入外部资源文件
 * 可以在其中增加一些属性配置
 * 如果有两个文件同一字段,优先使用外部配置文件
+
+## typeAliases
+
+* 类型别名可为 Java 类型设置一个缩写名字
+* 它仅用于 XML 配置，意在降低冗余的全限定类名书写
+* 第一种使用typeAlias,第二种使用package
+
+```xml
+<!--mybatis-config.xml-->
+<!--可以给实体类起别名-->
+<typeAliases>
+    <typeAlias alias="User" type="com.kai.pojo.Myuser"/>
+    <!--<package name="com.kai.pojo.Myuser"/>-->
+</typeAliases>
+```
+
+```xml
+<!--MyuserMapper.xml-->
+<select id="getUserList" resultType="User">
+    select * from mybatis.myuser;
+</select>
+```
+
+* 在实体类比较少的时候,使用第一种方法
+* 如果实体类多,建议使用扫描包方法,在没有注解的情况下,会使用包的首字母小写的非限定类名来作为它的别名
+
+```java
+@Alias("author")
+public class Author {
+    ...
+}
+```
+
+## settings
+
+![image-20210102170251525](Mybatis.assets/image-20210102170251525.png)
+
+![image-20210102170310864](Mybatis.assets/image-20210102170310864.png)
+
+## mappers
+
+方式一:
+
+```xml
+<!-- 使用相对于类路径的资源引用 -->
+<mappers>
+  <mapper resource="org/mybatis/builder/AuthorMapper.xml"/>
+  <mapper resource="org/mybatis/builder/BlogMapper.xml"/>
+  <mapper resource="org/mybatis/builder/PostMapper.xml"/>
+</mappers>
+```
+
+方式二:
+
+```xml
+<!-- 使用映射器接口实现类的完全限定类名 -->
+<mappers>
+  <mapper class="org.mybatis.builder.AuthorMapper"/>
+  <mapper class="org.mybatis.builder.BlogMapper"/>
+  <mapper class="org.mybatis.builder.PostMapper"/>
+</mappers>
+```
+
+* 接口和他的Mapper配置文件必须同名
+* 接口和他的Mapper配置文件必须在同一包下
+
+方式三:
+
+```xml
+<!-- 将包内的映射器接口实现全部注册为映射器 -->
+<mappers>
+  <package name="org.mybatis.builder"/>
+</mappers>
+```
+
+* 接口和他的Mapper配置文件必须同名
+* 接口和他的Mapper配置文件必须在同一包下
+
+## 生命周期
+
+作用域和生命周期类别是至关重要的，因为错误的使用会导致非常严重的**并发问题**。
+
+![image-20210102172434040](Mybatis.assets/image-20210102172434040.png)
+
+* SqlSessionFactoryBuilder
+  * 一旦创建了 SqlSessionFactory，就不再需要它了。
+  * 局部变量
+* **SqlSessionFactory**
+  * 类似数据库连接池,一旦被创建就应该在应用的运行期间一直存在,没有任何理由丢弃它或重新创建另一个实例
+  * 最佳作用域是应用作用域,最简单的就是使用单例模式或者静态单例模式
+* **SqlSession**
+  * 每个线程都应该有它自己的 SqlSession 实例,连接到连接池的请求
+  * SqlSession 的实例不是线程安全的,因此是不能被共享的,所以它的最佳的作用域是请求或方法作用域,用完之后需要关闭,否则资源被占用
+
+![image-20210102173635411](Mybatis.assets/image-20210102173635411.png)
+
+每一个Mapper代表一个业务
+
+# ResultMap
+
+解决属性名和字段名不一致的问题
+
+![image-20210102174813956](Mybatis.assets/image-20210102174813956.png)
+
+起别名可以解决:
+
+```xml
+<select id="getUserById" parameterType="int" resultType="com.kai.pojo.Myuser">
+    select id,`name`,pwd as password from mybatis.myuser where id=#{id};
+</select>
+```
+
+## ResultMap
+
+结果集映射
+
+```
+id	name	pwd
+id	name	password
+```
+
+```xml
+<resultMap id="UserMap" type="User">
+    <!--column是数据库中的字段,property是实体类中的属性-->
+    <result column="id" property="id"/>
+    <result column="name" property="name"/>
+    <result column="pwd" property="password"/>
+</resultMap>
+<select id="getUserById" parameterType="int" resultMap="UserMap">
+    select * from mybatis.myuser where id=#{id};
+</select>
+```
+
+* `resultMap` 元素是 MyBatis 中最重要最强大的元素
+* ResultMap 的设计思想是，对简单的语句做到零配置，对于复杂一点的语句，只需要描述语句之间的关系就行了。
+
