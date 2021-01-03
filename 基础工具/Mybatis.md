@@ -661,3 +661,253 @@ id	name	password
 * `resultMap` 元素是 MyBatis 中最重要最强大的元素
 * ResultMap 的设计思想是，对简单的语句做到零配置，对于复杂一点的语句，只需要描述语句之间的关系就行了。
 
+# 日志
+
+## 日志工厂
+
+如果一个数据库操作出现了异常,我们需要排错,通过日志工厂可以实现
+
+![image-20210103153153786](Mybatis.assets/image-20210103153153786.png)
+
+* SLF4J 
+* **LOG4J**
+* LOG4J2
+* JDK_LOGGING 
+* COMMONS_LOGGING 
+* **STDOUT_LOGGING** 
+* NO_LOGGING
+
+在Mybatis中,具体使用哪个日志,在设置中设定
+
+```xml
+<settings>
+    <setting name="logImpl" value="STDOUT_LOGGING"/>
+</settings>
+```
+
+STDOUT_LOGGING标准日志输出
+
+![image-20210103154004738](Mybatis.assets/image-20210103154004738.png)
+
+## LOG4J
+
+通过使用Log4j，我们可以控制日志信息输送的目的地是控制台、文件、GUI组件
+
+我们也可以控制每一条日志的输出格式
+
+通过定义每一条日志信息的级别，我们能够更加细致地控制日志的生成过程
+
+最令人感兴趣的就是，这些可以通过一个配置文件来灵活地进行配置，而不需要修改应用的代码。
+
+* 先导入LOG4J的包
+
+```xml
+<dependency>
+    <groupId>log4j</groupId>
+    <artifactId>log4j</artifactId>
+    <version>1.2.17</version>
+</dependency>
+```
+
+* 配置文件`log4j.properties`
+
+```properties
+#将等级为DEBUG的日志信息输出到console和file这两个目的地，console和file的定义在下面的代码
+log4j.rootLogger=DEBUG,console,file
+
+#控制台输出的相关设置
+log4j.appender.console = org.apache.log4j.ConsoleAppender
+log4j.appender.console.Target = System.out
+log4j.appender.console.Threshold=DEBUG
+log4j.appender.console.layout = org.apache.log4j.PatternLayout
+log4j.appender.console.layout.ConversionPattern=[%c]-%m%n
+
+#文件输出的相关设置
+log4j.appender.file = org.apache.log4j.RollingFileAppender
+log4j.appender.file.File=./log/kai.log
+log4j.appender.file.MaxFileSize=10mb
+log4j.appender.file.Threshold=DEBUG
+log4j.appender.file.layout=org.apache.log4j.PatternLayout
+log4j.appender.file.layout.ConversionPattern=[%p][%d{yy-MM-dd}][%c]%m%n
+
+#日志输出级别
+log4j.logger.org.mybatis=DEBUG
+log4j.logger.java.sql=DEBUG
+log4j.logger.java.sql.Statement=DEBUG
+log4j.logger.java.sql.ResultSet=DEBUG
+log4j.logger.java.sql.PreparedStatement=DEBUG
+```
+
+* 配置log4j为日志的实现
+
+```xml
+<settings>
+    <setting name="logImpl" value="LOG4J"/>
+</settings>
+```
+
+直接测试
+
+![image-20210103160310165](Mybatis.assets/image-20210103160310165.png)
+
+简单使用
+
+```java
+static Logger logger = Logger.getLogger(MyuserMapperTest.class);
+@Test
+public void testlog4j(){
+    logger.info("info:进入了log4j方法");
+    logger.debug("debug:进入了log4j方法");
+    logger.error("error:进入了log4j方法");
+}
+```
+
+运行会在项目目录下生成log文件
+
+![](Mybatis.assets/image-20210103161315833.png)
+
+# 分页
+
+## limit
+
+```sql
+select * from myuser limit 0,5;
+--第一个数据开始,显示5个数据(mysql)表从0开始
+```
+
+使用Mybatis实现分页
+
+```java
+//MyuserMapper接口
+//分页
+List<Myuser> getUserListbyLimit(Map<String,Integer> map);
+```
+
+```xml
+<!--MyuserMapper.xml-->
+<select id="getUserListbyLimit" parameterType="map" resultType="User">
+    select * from mybatis.myuser limit #{startIndex},#{pageSize};
+</select>
+```
+
+```java
+//MyuserMapperTest.java
+@Test
+public void testlimt(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    HashMap<String, Integer> hashMap = new HashMap<>();
+    hashMap.put("startIndex",0);
+    hashMap.put("pageSize",10);
+    List<Myuser> userListbyLimit = mapper.getUserListbyLimit(hashMap);
+    for (Myuser myuser : userListbyLimit) {
+        System.out.println(myuser);
+    }
+    sqlSession.close();;
+}
+```
+
+![image-20210103165441217](Mybatis.assets/image-20210103165441217.png)
+
+## RowBounds
+
+```java
+List<Myuser> getUserByRowBounds();
+```
+
+```java
+public void testRowBounds(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+
+    RowBounds rowBounds = new RowBounds(0, 5);
+    List<Myuser> userlist = sqlSession.selectList("com.kai.dao.MyuserMapper.getUserByRowBounds",null,rowBounds);
+    for (Myuser myuser : userlist) {
+        System.out.println(myuser);
+    }
+    sqlSession.close();
+}
+```
+
+```xml
+<select id="getUserByRowBounds" resultType="User">
+    select * from mybatis.myuser;
+</select>
+```
+
+## PageHelper
+
+https://pagehelper.github.io/
+
+# 注解开发
+
+## 使用注解开发
+
+对于像 BlogMapper 这样的映射器类来说，还有另一种方法来完成语句映射。 它们映射的语句可以不用 XML 来配置，而可以使用 Java 注解来配置。比如，上面的 XML 示例可以被替换成如下的配置
+
+```java
+package org.mybatis.example;
+public interface BlogMapper {
+  @Select("SELECT * FROM blog WHERE id = #{id}")
+  Blog selectBlog(int id);
+}
+```
+
+使用注解来映射简单语句会使代码显得更加简洁，但对于稍微复杂一点的语句，Java 注解不仅力不从心，还会让你本就复杂的 SQL 语句更加混乱不堪。 因此，如果你需要做一些很复杂的操作，最好用 XML 来映射语句。
+
+```java
+public interface mapper02 {
+    @Select("select * from myuser")
+    List<Myuser> getUserList();
+}
+```
+
+```xml
+<mappers>
+    <mapper class="com.kai.mapper.mapper02"/>
+</mappers>
+```
+
+本质:反射机制实现
+
+底层:动态代理模式
+
+## CRUD
+
+注意事务
+
+在Mapper工具类中关闭事务,打开自动提交
+
+```java
+public static SqlSession getSqlSession() {
+    return sqlSessionFactory.openSession(true);
+}
+```
+
+```java
+//多个参数查询时,参数前面必须加上@Param注解
+@Select("select * from myuser where id=#{id} and name=#{name} ")
+Myuser getUserByIDNAME(@Param("id")int id,@Param("name") String name);
+```
+
+```java
+@Insert("insert into myuser(id,name,pwd) values (#{id},#{name},#{pwd})")
+int addUser(Myuser user);
+
+@Update("update myuser set name=#{name},pwd=#{pwd} where id=#{id}")
+int updateUser(Myuser user);
+
+@Delete("delete from myuser where id=#{id}")
+int deleteUser(@Param("id") int id);
+```
+
+特别注意
+
+```xml
+<!--绑定接口-->
+<mappers>
+    <mapper class="com.kai.mapper.mapper02"/>
+</mappers>
+```
+
+# 多对一处理
+
