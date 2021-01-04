@@ -911,3 +911,204 @@ int deleteUser(@Param("id") int id);
 
 # 多对一处理
 
+## 环境搭建
+
+```sql
+CREATE TABLE `teacher` (
+  `id` INT(10) NOT NULL,
+  `name` VARCHAR(30) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8
+
+INSERT INTO teacher(`id`, `name`) VALUES (1, '秦老师'); 
+
+CREATE TABLE `student` (
+  `id` INT(10) NOT NULL,
+  `name` VARCHAR(30) DEFAULT NULL,
+  `tid` INT(10) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fktid` (`tid`),
+  CONSTRAINT `fktid` FOREIGN KEY (`tid`) REFERENCES `teacher` (`id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8
+INSERT INTO `student` (`id`, `name`, `tid`) VALUES ('1', '小明', '1'); 
+INSERT INTO `student` (`id`, `name`, `tid`) VALUES ('2', '小红', '1'); 
+INSERT INTO `student` (`id`, `name`, `tid`) VALUES ('3', '小张', '1'); 
+INSERT INTO `student` (`id`, `name`, `tid`) VALUES ('4', '小李', '1'); 
+INSERT INTO `student` (`id`, `name`, `tid`) VALUES ('5', '小王', '1');
+```
+
+
+
+![image-20210104134210980](Mybatis.assets/image-20210104134210980.png)
+
+![image-20210104132957721](Mybatis.assets/image-20210104132957721.png)
+
+```java
+//pojo/Student.java
+import lombok.Data;
+@Data
+public class Student {
+    private int id;
+    private String name;
+    //学生需要关联一个老师
+    private Teacher teacher;
+}
+```
+
+![image-20210104135819682](Mybatis.assets/image-20210104135819682.png)
+
+## 按照查询嵌套处理
+
+```xml
+<!-- 查询所有学生信息 根据查询出来的学生tid,寻找对应的老师-->
+<select id="listStudent" resultMap="StudentTeacher">
+    select * from student s;
+</select>
+<resultMap id="StudentTeacher" type="Student">
+    <result property="id" column="id"/>
+    <result property="name" column="name"/>
+    <!--复杂的语句需要单独处理
+        对象使用 association
+        集合使用 collection-->
+    <association property="teacher" 
+                 column="tid" 
+                 javaType="Teacher" 
+                 select="getTeacher"/>
+</resultMap>
+<select id="getTeacher" resultType="Teacher">
+    select * from teacher where id=#{id};
+</select>
+```
+
+## 按照结果嵌套处理
+
+```xml
+<!-- 按照结果嵌套处理-->
+<select id="listStudent2" resultMap="StudentTeacher2">
+    select s.id sid,s.name sname,t.name tname,t.id tid
+    from student s,teacher t
+    where s.tid=t.id;
+</select>
+<resultMap id="StudentTeacher2" type="Student">
+    <result property="id" column="sid"/>
+    <result property="name" column="sname"/>
+    <association property="teacher" javaType="Teacher">
+        <result property="name" column="tname"/>
+        <result property="id" column="tid"/>
+    </association>
+</resultMap>
+```
+
+MySQL多对一查询方式
+
+* 子查询
+* 联表查询
+
+# 一对多处理
+
+![image-20210104135231492](Mybatis.assets/image-20210104135231492.png)
+
+## 按照结果嵌套处理
+
+```xml
+<!--按照结果嵌套查询-->
+<select id="getTeachers" resultMap="TeacherStudent">
+    select s.id sid,s.name sname,t.id tid,t.name tname
+    from teacher t,student s
+    where s.tid=t.id and t.id=#{tid};
+</select>
+<resultMap id="TeacherStudent" type="Teacher">
+    <result property="id" column="tid"/>
+    <result property="name" column="tname"/>
+    <!--复杂的语句需要单独处理 对象:association 集合:collection-->
+    <!--javaType=""指定属性的类型 集合中的泛型信息使用ofType-->
+    <collection property="students" ofType="Student">
+        <result property="id" column="sid"/>
+        <result property="name" column="sname"/>
+        <result property="tid" column="tid"/>
+    </collection>
+</resultMap>
+```
+
+## 按照查询嵌套处理
+
+```xml
+<!--按照查询嵌套查询-->
+<select id="getTeachers2" resultMap="TeacherStudent2">
+    select * from teacher where id=#{tid};
+</select>
+<resultMap id="TeacherStudent2" type="Teacher">
+    <result property="id" column="id"/>
+    <collection property="students"
+                javaType="ArrayList"
+                ofType="Student"
+                select="getStudent"
+                column="id"/>
+</resultMap>
+<select id="getStudent" resultType="Student">
+    select * from student where tid=#{tid}
+</select>
+```
+
+## 小结
+
+* 关联多对一: association 
+* 集合一对多: collection
+* javaType: 用来指定实体类中属性的类型
+* ofType: 用来指定集合映射到集合中实体类,泛型的约束类型
+
+注意:
+
+* 保证SQL的可读性,尽量保证通俗易懂
+* 注意一对多和多对一,属性名和字段的问题
+* 可以使用日志查错
+
+![image-20210104144203790](Mybatis.assets/image-20210104144203790.png)
+
+# 动态SQL
+
+## 环境搭建
+
+什么是动态SQL:动态SQL就是指根据不同的条件生成不同的SQL语句
+
+```
+动态 SQL 是 MyBatis 的强大特性之一。如果你使用过 JDBC 或其它类似的框架，你应该能理解根据不同条件拼接 SQL 语句有多痛苦，例如拼接时要确保不能忘记添加必要的空格，还要注意去掉列表最后一个列名的逗号。利用动态 SQL，可以彻底摆脱这种痛苦。
+
+使用动态 SQL 并非一件易事，但借助可用于任何 SQL 映射语句中的强大的动态 SQL 语言，MyBatis 显著地提升了这一特性的易用性。
+
+如果你之前用过 JSTL 或任何基于类 XML 语言的文本处理器，你对动态 SQL 元素可能会感觉似曾相识。在 MyBatis 之前的版本中，需要花时间了解大量的元素。借助功能强大的基于 OGNL 的表达式，MyBatis 3 替换了之前的大部分元素，大大精简了元素种类，现在要学习的元素种类比原来的一半还要少。
+
+if
+choose (when, otherwise)
+trim (where, set)
+foreach
+```
+
+```sql
+CREATE TABLE `blog`(
+`id` VARCHAR(50) NOT NULL COMMENT '博客id',
+`title` VARCHAR(100) NOT NULL COMMENT '博客标题',
+`author` VARCHAR(30) NOT NULL COMMENT '博客作者',
+`create_time` DATETIME NOT NULL COMMENT '创建时间',
+`views` INT(30) NOT NULL COMMENT '浏览量'
+)ENGINE=INNODB DEFAULT CHARSET=utf8
+```
+
+```java
+@Data
+public class Blog {
+    private String id;  // 通过IDUtils生成随机ID
+    private String title;
+    private String author;
+    private Date createTime;//开启驼峰命名映射
+    private int views;
+}
+```
+
+```java
+public class IDUtils {
+    public static String getID(){
+        return UUID.randomUUID().toString().replaceAll("-","");
+    }
+}
+```
