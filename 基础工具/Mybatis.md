@@ -10,6 +10,109 @@ MyBatis是一款优秀的持久层框架,支持自定义SQL,存储过程以及�
 
 [Mybatis github源码地址](https://github.com/mybatis/mybatis-3/tree/master/src/site)
 
+# 配置示例
+
+## db.properties
+
+```properties
+#db.properties
+driver=com.mysql.cj.jdbc.Driver
+url=jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+username=root
+password=123456
+```
+
+## mybatis-config.xml
+
+```xml
+<!--mybatis-config.xml-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <!--引入外部配置文件-->
+    <properties resource="db.properties"/>
+    <settings>
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+    <!--可以给实体类起别名-->
+    <typeAliases>
+        <typeAlias alias="Blog" type="com.kai.pojo.Blog"/>
+    </typeAliases>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="${driver}"/>
+                <property name="url" value="${url}"/>
+                <property name="username" value="${username}"/>
+                <property name="password" value="${password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+
+    <!--每一个Mapper.xml都需要在Mybatis核心配置文件中注册-->
+    <mappers>
+        <mapper resource="BlogMapper.xml"/>
+    </mappers>
+</configuration>
+```
+
+## BlogMapper.xml
+
+```xml
+<!--BlogMapper.xml 建议与接口放在同一个包下
+				但会遇到Maven输出问题-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kai.mapper.BlogMapper">
+    <insert id="addBlog" parameterType="Blog">
+        insert into blog(id, title, author, create_time, views)
+        values (#{id}, #{title}, #{author}, #{createTime}, #{views});
+    </insert>
+    <select id="listIfBlogs" parameterType="map" resultType="Blog">
+        select * from blog
+        <where>
+            <if test="title != null">
+                title = #{title}
+            </if>
+            <if test="author != null">
+                and author = #{author}
+            </if>
+        </where>
+    </select>
+</mapper>
+```
+
+```xml
+<!--解决Maven报错,配置pom.xml-->
+<build>
+    <resources>
+        <resource>
+            <directory>src/main/resources</directory>
+            <includes>
+                <include>**/*.properties</include>
+                <include>**/*.xml</include>
+            </includes>
+            <filtering>true</filtering>
+        </resource>
+        <resource>
+            <directory>src/main/java</directory>
+            <includes>
+                <include>**/*.properties</include>
+                <include>**/*.xml</include>
+            </includes>
+            <filtering>true</filtering>
+        </resource>
+
+    </resources>
+</build>
+```
+
 # 创建MyBatis
 
 [Mysql基本命令](mysql.md)
@@ -1071,6 +1174,8 @@ MySQL多对一查询方式
 
 什么是动态SQL:动态SQL就是指根据不同的条件生成不同的SQL语句
 
+本质还是SQL,只是在SQL层面执行一个逻辑代码
+
 ```
 动态 SQL 是 MyBatis 的强大特性之一。如果你使用过 JDBC 或其它类似的框架，你应该能理解根据不同条件拼接 SQL 语句有多痛苦，例如拼接时要确保不能忘记添加必要的空格，还要注意去掉列表最后一个列名的逗号。利用动态 SQL，可以彻底摆脱这种痛苦。
 
@@ -1112,3 +1217,341 @@ public class IDUtils {
     }
 }
 ```
+
+```java
+//插入几个数据,Mybatis工具类中设置了自动提交
+@Test
+public void test01(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    BlogMapper mapper = sqlSession.getMapper(BlogMapper.class);
+
+    Blog blog = new Blog();
+    blog.setId(IDUtils.getID());
+    blog.setTitle("Mybatis hello");
+    blog.setAuthor("kai");
+    blog.setCreateTime(new Date());
+    blog.setViews(100);
+
+    mapper.addBlog(blog);
+
+    blog.setId(IDUtils.getID());
+    blog.setTitle("Spring hello");
+    mapper.addBlog(blog);
+    blog.setId(IDUtils.getID());
+    blog.setTitle("C++ hello");
+    mapper.addBlog(blog);
+    blog.setId(IDUtils.getID());
+    blog.setTitle("Java hello");
+    mapper.addBlog(blog);
+    sqlSession.close();
+}
+```
+
+## IF
+
+```java
+//查询博客
+List<Blog> listIfBlogs(Map map);
+```
+
+```xml
+<select id="listIfBlogs" parameterType="map" resultType="Blog">
+    select * from blog where 1=1
+    <if test="title != null">
+        and title = #{title}
+    </if>
+    <if test="author != null">
+        and author = #{author}
+    </if>
+</select>
+```
+
+```java
+@Test
+public void test02(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    BlogMapper mapper = sqlSession.getMapper(BlogMapper.class);
+    HashMap hashMap = new HashMap();
+    //hashMap.put("title","Java hello");
+    hashMap.put("author","kai");
+    List<Blog> blogs = mapper.listIfBlogs(hashMap);
+    for (Blog blog : blogs) {
+        System.out.println(blog);
+    }
+    sqlSession.close();
+}
+```
+
+## choose 
+
+类似于switch case break,每次第一个满足条件的语句
+
+```java
+//查询博客choose
+List<Blog> listChooseBlogs(Map map);
+```
+
+```xml
+<select id="listChooseBlogs" parameterType="map" resultType="Blog">
+    select * from blog
+    <where>
+        <choose>
+            <when test="title != null">
+                title = #{title}
+            </when>
+            <when test="author != null">
+                and author = #{author}
+            </when>
+            <otherwise>
+                views = #{views}
+            </otherwise>
+        </choose>
+    </where>
+</select>
+```
+
+```java
+@Test
+public void test03(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    BlogMapper mapper = sqlSession.getMapper(BlogMapper.class);
+    HashMap hashMap = new HashMap();
+    //hashMap.put("title","Java hello");
+    hashMap.put("author","kai");//这时只会判断author
+    hashMap.put("views",100);
+    List<Blog> blogs = mapper.listChooseBlogs(hashMap);
+    for (Blog blog : blogs) {
+        System.out.println(blog);
+    }
+    sqlSession.close();
+}
+```
+
+
+
+## trim 
+
+where 元素只会在子元素返回任何内容的情况下才插入 “WHERE” 子句。而且，若子句的开头为 “AND” 或 “OR”，*where* 元素也会将它们去除。
+
+```xml
+<select id="listIfBlogs" parameterType="map" resultType="Blog">
+    select * from blog
+    <where>
+        <if test="title != null">
+            title = #{title}
+        </if>
+        <if test="author != null">
+            and author = #{author}
+        </if>
+    </where>
+</select>
+```
+
+用于动态更新语句的类似解决方案叫做 *set*。*set* 元素可以用于动态包含需要更新的列，忽略其它不更新的列
+
+```xml
+<update id="updateBlog" parameterType="map">
+    update blog
+    <set>
+        <if test="title != null">
+            title = #{title},
+        </if>
+        <if test="author != null">
+            title = #{author},
+        </if>
+    </set>
+    where id = #{id}
+</update>
+```
+
+这个例子中，*set* 元素会动态地在行首插入 SET 关键字，并会删掉额外的逗号（这些逗号是在使用条件语句给列赋值时引入的）
+
+trim可以定制where和trim
+
+```xml
+<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  ...
+</trim>
+<trim prefix="SET" suffixOverrides=",">
+  ...
+</trim>
+```
+
+*prefixOverrides* 属性会忽略通过管道符分隔的文本序列（注意此例中的空格是必要的）。上述例子会移除所有 *prefixOverrides* 属性中指定的内容，并且插入 *prefix* 属性中指定的内容。
+
+## SQL片段
+
+复用SQL语句
+
+sql标签写SQL语句和include标签引入
+
+```xml
+<sql id="list-if-blogs">
+    <if test="title != null">
+        title = #{title}
+    </if>
+    <if test="author != null">
+        and author = #{author}
+    </if>
+</sql>
+<select id="listIfBlogs" parameterType="map" resultType="Blog">
+    select * from blog
+    <where>
+        <!--<if test="title != null">-->
+        <!--title = #{title}-->
+        <!--</if>-->
+        <!--<if test="author != null">-->
+        <!--and author = #{author}-->
+        <!--</if>-->
+        <include refid="list-if-blogs"></include>
+    </where>
+</select>
+```
+
+注意事项:最好基于单表定义SQL片段,不要存在where标签
+
+## foreach
+
+```xml
+<select id="listForeachBlogs" parameterType="map" resultType="Blog">
+    select * from blog
+    <where>
+        <foreach collection="ids" item="id" open="and (" close=")" separator="or">
+            id = #{id}
+        </foreach>
+    </where>
+</select>
+```
+
+![image-20210105010524000](Mybatis.assets/image-20210105010524000.png)
+
+# 缓存
+
+减少的数据库的交互次数,减少系统开销,提高系统效率
+
+Mybatis系统中默认定义了两级缓存:一级缓存和二级缓存
+
+* 默认情况下,只有一级缓存开启(SqlSession级别的缓存,也称为本地缓存)
+* 二级缓存需要手动开启和配置,基于namespace级别的缓存
+* 为了提高扩展性,Mybatis定义了缓存接口Cache,我们可以通过实现Cache接口来定义二级缓存
+
+可用的清除策略有：
+
+- `LRU` – 最近最少使用：移除最长时间不被使用的对象。
+- `FIFO` – 先进先出：按对象进入缓存的顺序来移除它们。
+- `SOFT` – 软引用：基于垃圾回收器状态和软引用规则移除对象。
+- `WEAK` – 弱引用：更积极地基于垃圾收集器状态和弱引用规则移除对象。
+
+默认的清除策略是 LRU。
+
+## 一级缓存
+
+一级缓存也叫本地缓存:SqlSession
+
+* 与数据库同一次会话期间查询到的数据会放到本地缓存中
+* 之后如果需要获取相同的数据,直接从缓存中拿,没必要再去查询数据库
+
+```java
+@Test
+public void test01(){
+    SqlSession sqlSession = MybatisUtils.getSqlSession();
+    MyuserMapper mapper = sqlSession.getMapper(MyuserMapper.class);
+    Myuser userById = mapper.getUserById(1);
+    System.out.println(userById);
+    System.out.println("======================");
+    Myuser userById1 = mapper.getUserById(1);
+    System.out.println(userById1);
+    System.out.println("======================");
+    System.out.println(userById == userById1);
+    sqlSession.close();
+}
+```
+
+![image-20210105133444829](Mybatis.assets/image-20210105133444829.png)
+
+查询同一个用户,只运行了一次SQL
+
+缓存失效:
+
+* 查询不同的东西
+* 增删改有可能会改变原来的数据,会刷新缓存
+* 查询不同的Mapper
+* 手动清理缓存`sqlSession.clearCache();`
+
+一级缓存默认是开启中,只在一次SqlSession中有效,也就是拿到连接到关闭这个连接这个区间段有效
+
+## 二级缓存
+
+二级缓存基于namespace一个命名空间,当一级缓存关闭时,他会将以继缓存中的数据保存在二级缓存中
+
+要启用全局的二级缓存，只需要在你的 SQL 映射文件中添加一行：
+
+```xml
+<cache/>
+```
+
+这个简单语句的效果如下:
+
+- 映射语句文件中的所有 select 语句的结果将会被缓存。
+- 映射语句文件中的所有 insert、update 和 delete 语句会刷新缓存。
+- 缓存会使用最近最少使用算法（LRU, Least Recently Used）算法来清除不需要的缓存。
+- 缓存不会定时进行刷新（也就是说，没有刷新间隔）。
+- 缓存会保存列表或对象（无论查询方法返回哪种）的 1024 个引用。
+- 缓存会被视为读/写缓存，这意味着获取到的对象并不是共享的，可以安全地被调用者修改，而不干扰其他调用者或线程所做的潜在修改。
+
+```xml
+<cache
+  eviction="FIFO"
+  flushInterval="60000"
+  size="512"
+  readOnly="true"/>
+```
+
+这个更高级的配置创建了一个 FIFO 缓存，每隔 60 秒刷新，最多可以存储结果对象或列表的 512 个引用，而且返回的对象被认为是只读的，因此对它们进行修改可能会在不同线程中的调用者产生冲突。
+
+```xml
+<!--config.xml设置二级缓存开关,默认是开启的-->
+<setting name="cacheEnabled" value="true"/>
+```
+
+```java
+@Test
+public void test01(){
+    SqlSession sqlSession1 = MybatisUtils.getSqlSession();
+    SqlSession sqlSession2 = MybatisUtils.getSqlSession();
+
+    MyuserMapper mapper1 = sqlSession1.getMapper(MyuserMapper.class);
+    Myuser userById1 = mapper1.getUserById(1);
+    System.out.println(userById1);
+    sqlSession1.close();//一级缓存关闭
+
+    System.out.println("======================");
+
+    MyuserMapper mapper2 = sqlSession2.getMapper(MyuserMapper.class);
+    Myuser userById2 = mapper2.getUserById(1);
+    System.out.println(userById2);
+    sqlSession2.close();
+}
+```
+
+![image-20210105141950088](Mybatis.assets/image-20210105141950088.png)
+
+第二次查询并没有执行SQL语句
+
+小结:
+
+* 二级缓存在同一个Mapper映射文件下有效
+* 所有的数据都会现在一级缓存中,只有当会话提交或者关闭时,才会提交到二级缓存中
+
+## 缓存原理
+
+![image-20210105143901410](Mybatis.assets/image-20210105143901410.png)
+
+缓存顺序:
+
+* 先看二级缓存有没有
+* 再看一级缓存有没有
+* 最后查询数据库
+
+
+
