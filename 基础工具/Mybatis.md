@@ -113,6 +113,31 @@ password=123456
 </build>
 ```
 
+## MybatisUtils
+
+```java
+//工具类
+//SqlSessionFactory -->sqlSession
+public class MybatisUtils {
+
+    private static SqlSessionFactory sqlSessionFactory;
+    static {
+        try {
+            //获取sqlSessionFactory对象
+            String resource = "mybatis-config.xml";
+            InputStream inputStream = Resources.getResourceAsStream(resource);
+            sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static SqlSession getSqlSession(){
+        return sqlSessionFactory.openSession();
+    }
+}
+```
+
 # 创建MyBatis
 
 [Mysql基本命令](mysql.md)
