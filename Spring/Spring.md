@@ -641,7 +641,7 @@ public class Person {
 </beans>
 ```
 
-### @Autowired
+## @Autowired
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -702,4 +702,560 @@ public class Person {
 @Resource注解类似,先使用byname
 
 # Spring注解开发
+
+## 常用注解
+
+在使用注解开发需要导入aop的包
+
+**xml配置导入context约束,增加注解支持**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+    <context:annotation-config/>
+<!--    指定要扫描的包,这个包下的注解就会生效-->
+    <context:component-scan base-package="com.kai"/>
+
+</beans>
+```
+
+```java
+//bean注入和属性注入
+
+//等价于 <bean id="user" class="com.kai.pojo.User"/>
+//组件
+@Component
+public class User {
+    public String name="kai";
+
+    //相当于 <property name="name" value="maokai"/>
+    @Value("maokai")
+    public String name2;
+}
+```
+
+@Component有几个衍生注解,我们在web开发中,会按照mvc三层架构分层
+
+* dao	@Repository
+* service    @Service
+* controller    @Controller
+* 这4个注解的功能都是一样的,标注在一个类上,将某个没注册到Spring容器中装配
+
+自动装配的注解,标注在类的成员变量上
+
+* @Autowired	自动装配通过类型名字
+* @Nullable    字段标记了这个注解,说明这个字段可以为null
+* @Resource    自动装配通过名字类型
+
+作用域注解,标注在类上
+
+* @Scope("singleton"),单例模式
+
+小结:
+
+* xml更加万能,适用于任何场景,维护简单
+* 注解维护相对复杂
+
+## 使用Java方式配置Spring
+
+完全不使用xml配置,全权交给Java
+
+JavaConfig是Spring的一个子项目,Spring4之后的核心功能
+
+```java
+@Data
+@Component
+public class User {
+    @Value("kaikai")
+    private String name;
+}
+```
+
+```java
+@Configuration
+public class MyConfig {
+    //方法名相当于bean标签中的id属性
+    //方法的返回值相当于bean标签的class属性
+    @Bean
+    public User testconfig(){
+        return new User();
+    }
+}
+```
+
+```java
+@Test
+public void test01(){
+    //如果完全使用了配置类方式去做,可以通过AnnotationConfig来获取容器
+    ApplicationContext context= new AnnotationConfigApplicationContext(MyConfig.class);
+    User getUser = context.getBean("testconfig", User.class);
+    System.out.println(getUser);
+}
+```
+
+这种纯Java的配置方式,在SpringBoot中随处可见!!!!!
+
+# 代理模式
+
+SpringAOP的底层
+
+代理模式的分类:
+
+* 静态代理
+* 动态代理
+
+## 静态代理
+
+* 抽象角色:一般会使用接口或抽象类来解决
+* 真实角色:被代理的角色 
+* 代理角色:代理真实角色,代理真实角色后,我们一般会做一些附属操作
+* 客户:访问代理对象的人
+
+静态代理的好处:
+
+* 可以使真实角色操作更加纯粹,不用关注一些公共的业务
+* 公告业务交给代理角色,实现业务的分工
+* 公共业务发生扩展时,方便集中管理
+
+缺点:
+
+* 一个真实角色就会产生一个代理角色,代码量翻倍,开发效率低
+
+## 动态代理
+
+* 动态代理和静态代理角色一样
+* 动态代理的代理类是动态生成的,不是我们直接写好的
+* 动态代理分为两大类:基于接口的动态代理,基于类的动态代理
+  * 基于接口:JDK动态代理
+  * 基于类:cglib
+  * Java字节码实现:JAVAssist
+
+需要了解两个类: Proxy 代理, InvocationHandler 调用处理程序
+
+```java
+//租房
+public interface Rent {
+    public void rent();
+}
+```
+
+```java
+//房东
+public class Host implements Rent {
+    @Override
+    public void rent() {
+        System.out.println("房东要出租房子");
+    }
+}
+```
+
+```java
+//动态生产代理类
+public class ProxyInvocationHandler implements InvocationHandler {
+    //被代理的接口
+    private Rent rent;
+    public void setRent(Rent rent) {
+        this.rent = rent;
+    }
+    //生成代理对象
+    public Object getProxy(){
+        return Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                            rent.getClass().getInterfaces(),this);
+    }
+    //处理代理实例,并返回结果
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        //动态代理的本质就是使用反射机制
+        seeHouse();
+        Object result = method.invoke(rent, args);
+        return result;
+    }
+    public void seeHouse(){
+        System.out.println("中介带看房子");
+    }
+}
+```
+
+```java
+public class Client {
+    public static void main(String[] args) {
+        //真实角色
+        Host host = new Host();
+        //代理角色:现在没有
+        ProxyInvocationHandler pih = new ProxyInvocationHandler();
+        //通过调用程序处理角色来处理我们要调用的接口对象
+        pih.setRent(host);
+        Rent proxy = (Rent) pih.getProxy();
+        proxy.rent();
+    }
+}
+```
+
+通用的动态代理类
+
+```java
+//动态生产代理类
+public class ProxyInvocationHandler implements InvocationHandler {
+    //被代理的接口
+    private Object target;
+
+    public void setTarget(Object target) {
+        this.target = target;
+    }
+    //生成代理对象
+    public Object getProxy(){
+        return Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                target.getClass().getInterfaces(),this);
+    }
+    //处理代理实例,并返回结果
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        //动态代理的本质就是使用反射机制
+        Object result = method.invoke(target, args);
+        return result;
+    }
+}
+```
+
+# AOP
+
+AOP(Aspect Oriented Programming)意为:面向切面编程,通过预编译方式和运行期动态代理实现程序功能的统一维护的一种技术,AOP是OOP的延续,是软件开发中的一个热点,也是Spring框架中的一个重要内容,是函数式编程的一种衍生泛型,利用AOP可以对业务逻辑的各个部分进行隔离,从而使得业务逻辑各部分之间的耦合度降低,提高程序的可重用性,同时提高了开发的效率.
+
+![image-20210109131922778](Spring.assets/image-20210109131922778.png)
+
+## 实现AOP
+
+使用AOP需要导入的依赖包
+
+```xml
+<dependency>
+    <groupId>org.aspectj</groupId>
+    <artifactId>aspectjweaver</artifactId>
+    <version>1.9.6</version>
+</dependency>
+```
+
+### 方式一:使用Spring的API接口
+
+```java
+public interface UserServiceInterface {
+
+    void add();
+    void delete();
+    void update();
+    void select();
+}
+```
+
+```java
+public class UserServiceImpl implements UserServiceInterface {
+    @Override
+    public void add() {
+        System.out.println("add");
+    }
+
+    @Override
+    public void delete() {
+        System.out.println("delete");
+    }
+
+    @Override
+    public void update() {
+        System.out.println("update");
+    }
+
+    @Override
+    public void select() {
+        System.out.println("select");
+    }
+}
+```
+
+```java
+public class BeforeLog implements MethodBeforeAdvice {
+
+    //method 要执行目标对象的方法
+    //args  参数
+    //target 目标对象
+    @Override
+    public void before(Method method, Object[] args, Object target) throws Throwable {
+        System.out.println(target.getClass().getName()+"的"+method.getName()+"被执行了");
+    }
+}
+```
+
+```java
+public class AfterLog implements AfterReturningAdvice {
+
+    //returnValue 返回值
+    @Override
+    public void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable {
+        System.out.println("执行了"+method.getName()+"方法,返回结果"+returnValue);
+    }
+}
+```
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop
+        https://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!--注册bean-->
+    <bean id="userService" class="com.kai.service.UserServiceImpl"/>
+    <bean id="beforeLog" class="com.kai.log.BeforeLog"/>
+    <bean id="afterLog" class="com.kai.log.AfterLog"/>
+
+    <!--方式一:使用原生Spring的API接口-->
+    <!--配置aop,需要导入aop约束-->
+    <aop:config>
+        <!--切入点:  expression:表达式  execution(要执行的位置)-->
+        <aop:pointcut id="pointcut" expression="execution(* com.kai.service.UserServiceImpl.*(..))"/>
+        <!--执行环绕增强-->
+        <aop:advisor advice-ref="beforeLog" pointcut-ref="pointcut"/>
+        <aop:advisor advice-ref="afterLog" pointcut-ref="pointcut"/>
+    </aop:config>
+</beans>
+```
+
+### 第二种:自定义切面类
+
+```java
+public class DiyPointCut {
+
+    public void before(){
+        System.out.println("方法执行前");
+    }
+    public void after(){
+        System.out.println("方法执行后");
+    }
+}
+```
+
+```xml
+<!--方式二:自定义类-->
+<bean id="diy" class="com.kai.diy.DiyPointCut"/>
+<aop:config>
+    <!--自定义切面,ref要引入的类-->
+    <aop:aspect ref="diy">
+        <!--切入点-->
+        <aop:pointcut id="pointcut" expression="execution(* com.kai.service.UserServiceImpl.*(..))"/>
+        <!--通知-->
+        <aop:before method="before" pointcut-ref="pointcut"/>
+        <aop:after method="after" pointcut-ref="pointcut"/>
+    </aop:aspect>
+</aop:config>
+```
+
+### 第三种:使用注解实现
+
+```java
+//标注这个类是一个切面
+@Aspect
+public class AnnotationPointCut {
+
+    @Before("execution(* com.kai.service.UserServiceImpl.*(..))")
+    public void before(){
+        System.out.println("注解方式,方法执行前");
+    }
+
+    @After("execution(* com.kai.service.UserServiceImpl.*(..))")
+    public void after(){
+        System.out.println("注解方式,方法执行后");
+    }
+
+    //再环绕增强中,我们可以给定一个参数,代表我们要获取切入的店
+    @Around("execution(* com.kai.service.UserServiceImpl.*(..))")
+    public void around(ProceedingJoinPoint jp) throws Throwable {
+        System.out.println("环绕前");
+
+        Signature signature = jp.getSignature();
+        System.out.println("signature"+signature);
+
+        Object proceed = jp.proceed();
+        System.out.println("环绕后");
+
+        System.out.println(proceed);
+    }
+}
+```
+
+```xml
+<!--方式三:使用注解-->
+<bean id="annotationPointCut" class="com.kai.diy.AnnotationPointCut"/>
+<!--开启注解支持-->
+<aop:aspectj-autoproxy/>
+```
+
+# 整合Mybatis
+
+[Mybatis笔记](../基础工具/Mybatis.md)
+
+导入相关jar包
+
+* junit
+* mybatis
+* MySQL
+* spring相关
+* aop织入
+* mybatis-spring
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.16</version>
+    </dependency>
+    <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis</artifactId>
+        <version>3.5.2</version>
+    </dependency>
+    <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>1.9.6</version>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-jdbc</artifactId>
+        <version>5.2.9.RELEASE</version>
+    </dependency>
+    <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis-spring</artifactId>
+        <version>2.0.3</version>
+    </dependency>
+</dependencies>
+```
+
+## Mybatis-spring
+
+* 编写数据源
+* sqlSessionFactory
+* sqlSessionTemplate
+  * `SqlSessionTemplate` 是 MyBatis-Spring 的核心。作为 `SqlSession` 的一个实现，这意味着可以使用它无缝代替你代码中已经在使用的 `SqlSession`。 `SqlSessionTemplate` 是线程安全的，可以被多个 DAO 或映射器所共享使用。
+* 需要给接口写一个实体类(因为spring要代理,mybatis的代码)
+* 将实体类注入到spring中
+* 测试
+
+**spring-mapper.xml**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           https://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--DataSource:使用spring的数据源替换Mybatis的配置-->
+    <!--使用spring提供的JDBC org.springframework.jdbc.datasource.DriverManagerDataSource-->
+    <bean id="datasource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+        <property name="url" value="jdbc:mysql://localhost:3306/mybatis?useUnicode=true&amp;characterEncoding=utf8&amp;serverTimezone=UTC"/>
+        <property name="username" value="root"/>
+        <property name="password" value="123456"/>
+    </bean>
+    <!--sqlSessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="datasource"/>
+        <!--绑定Mybatis配置文件-->
+        <property name="configLocation" value="classpath:mybatis-config-spring.xml"/>
+        <property name="mapperLocations" value="classpath:UserMapper.xml"/>
+    </bean>
+
+    <!--SqlSessionTemplate就是我们使用的sqlSession-->
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+        <!--只能使用构造器注入,因为没有set方法-->
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+    </bean>
+
+    <bean id="userMapper" class="com.kai.mapper.UserMapperImpl">
+        <property name="sqlSession" ref="sqlSession"/>
+    </bean>
+</beans>
+```
+
+**UserMapperImpl.java**
+
+```java
+public class UserMapperImpl implements UserMapper{
+    private SqlSessionTemplate sqlSession;
+    public void setSqlSession(SqlSessionTemplate sqlSession) {
+        this.sqlSession = sqlSession;
+    }
+    @Override
+    public List<User> listUser() {
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+        return mapper.listUser();
+    }
+}
+```
+
+```java
+@Test
+public void test02(){
+    ApplicationContext context = new ClassPathXmlApplicationContext("spring-mapper.xml");
+    UserMapper userMapper = context.getBean("userMapper", UserMapper.class);
+    for (User user : userMapper.listUser()) {
+        System.out.println(user);
+    }
+}
+```
+
+# 事务管理
+
+## 声明式事务
+
+spring中事务的传播属性
+
+```
+REQUIRED：支持当前事务，如果当前没有事务，就新建一个事务。这是最常见的选择,是spring的默认选择
+SUPPORTS：支持当前事务，如果当前没有事务，就以非事务方式执行。  
+MANDATORY：支持当前事务，如果当前没有事务，就抛出异常。  
+REQUIRES_NEW：新建事务，如果当前存在事务，把当前事务挂起。  
+NOT_SUPPORTED：以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。  
+NEVER：以非事务方式执行，如果当前存在事务，则抛出异常。  
+NESTED：支持当前事务，如果当前事务存在，则执行一个嵌套事务，如果当前没有事务，就新建一个事务。
+```
+
+
+
+```xml
+<!--配置声明式事务-->
+<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+    <constructor-arg ref="dataSource" />
+</bean>
+<!--结合AOP实现事务织入-->
+<!--配置事务通知-->
+<tx:advice id="txAdvice" transaction-manager="transactionManager">
+    <!--给哪些方法配置事务-->
+    <!--配置事务的传播特性-->
+    <tx:attributes>
+        <tx:method name="add" propagation="REQUIRED"/>
+        <tx:method name="delete" propagation="REQUIRED"/>
+        <tx:method name="update" propagation="REQUIRED"/>
+        <tx:method name="query" read-only="true"/>
+        <tx:method name="*" propagation="REQUIRED"/>
+    </tx:attributes>
+</tx:advice>
+<!--配置事务切入-->
+<aop:config>
+    <aop:pointcut id="txPointCut" expression="execution(* com.kai.mapper.*.*(..))"/>
+    <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointCut"/>
+</aop:config>
+```
+
+## 编程式事务
 
