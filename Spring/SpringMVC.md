@@ -820,3 +820,715 @@ public class UserController3 {
 }
 ```
 
+# ssmbuild
+
+![image-20210112183248797](SpringMVC.assets/image-20210112183248797.png)
+
+![image-20210112183429718](SpringMVC.assets/image-20210112183429718.png)
+
+## mysql
+
+```sql
+CREATE DATABASE ssmbuild;
+USE ssmbuild;
+CREATE TABLE `books`(
+`bookID` INT NOT NULL AUTO_INCREMENT COMMENT '书id',
+`bookName` VARCHAR(100) NOT NULL COMMENT '书名',
+`bookCounts` INT NOT NULL COMMENT '数量',
+`detail` VARCHAR(200) NOT NULL COMMENT '描述',
+KEY `bookID`(`bookID`)
+)ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+INSERT INTO `books`(`bookID`,`bookName`,`bookCounts`,`detail`)VALUES
+(1,'Java',1,'从入门到放弃'),
+(2,'MySQL',10,'从删库到跑路'),
+(3,'Linux',5,'从进门到进牢')
+```
+
+## pom.xml
+
+```xml
+<!--    junit,数据库,连接池,servlet,jsp,mybatis,mybatis-spring,spring-->
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.10</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.16</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mchange</groupId>
+            <artifactId>c3p0</artifactId>
+            <version>0.9.5.2</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>jsp-api</artifactId>
+            <version>2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+            <version>3.5.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis-spring</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>5.2.9.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.2.9.RELEASE</version>
+        </dependency>
+    </dependencies>
+```
+
+```xml
+<!--    静态资源导出-->
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+
+        </resources>
+    </build>
+```
+
+## resources
+
+### mybatis-config.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <settings>
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+
+<!--    配置数据源,交给spring去做-->
+
+    <typeAliases>
+        <typeAlias type="com.kai.pojo.Books" alias="Books"/>
+    </typeAliases>
+
+    <mappers>
+        <mapper class="com.kai.mapper.BookMapper"/>
+    </mappers>
+</configuration>
+```
+
+### database.properties
+
+```properties
+jdbc.driver=com.mysql.cj.jdbc.Driver
+jdbc.url=jdbc:mysql://localhost:3306/ssmbuild?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+jdbc.username=root
+jdbc.password=123456
+```
+
+### applicationContext.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <import resource="classpath:spring-mapper.xml"/>
+    <import resource="classpath:spring-service.xml"/>
+    <import resource="spring-mvc.xml"/>
+</beans>
+```
+
+### spring-mapper.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!--关联数据库配置文件-->
+    <context:property-placeholder location="classpath:database.properties"/>
+    <!--连接池-->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="${jdbc.driver}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!--c3p0连接池的私有属性-->
+        <property name="initialPoolSize" value="10"/>
+        <property name="maxPoolSize" value="30"/>
+        <property name="minPoolSize" value="10"/>
+        <!--关闭连接后不自动commit-->
+        <property name="autoCommitOnClose" value="false"/>
+        <!--获取连接超时时间-->
+        <property name="checkoutTimeout" value="10000"/>
+        <!--当获取连接失败重试次数-->
+        <property name="acquireRetryAttempts" value="2"/>
+    </bean>
+
+    <!--sqlSessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+    </bean>
+
+    <!--配置mapper接口扫描包,动态实现mapper接口注入到Spring容器中-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+        <property name="basePackage" value="com.kai.mapper"/>
+    </bean>
+</beans>
+```
+
+### spring-service.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+
+    <!--扫描service下的包-->
+    <context:component-scan base-package="com.kai.service"/>
+    <!--讲所有业务类注入到spring-->
+    <bean id="BookServiceImpl" class="com.kai.service.BookServiceImpl">
+        <property name="bookMapper" ref="bookMapper"/>
+    </bean>
+
+    <!--声明式事务-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+
+</beans>
+```
+
+### spring-mvc.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/mvc
+        https://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+
+
+    <!--注解驱动-->
+    <mvc:annotation-driven/>
+    <!--静态资源过滤-->
+    <mvc:default-servlet-handler/>
+    <!--扫描包-->
+    <context:component-scan base-package="com.kai.controller"/>
+    <!--视图解析器-->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/jsp/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+</beans>
+```
+
+## mapper
+
+### BookMapper.java
+
+```java
+public interface BookMapper {
+    //增删改查
+    int insertBook(Books books);
+    int deleteBook(@Param("bookID") int id);
+    int updateBook(Books books);
+    Books getBook(@Param("bookID") int id);
+    List<Books> listBooks();
+
+    List<Books> queryBookByName(@Param("bookName") String bookName);
+}
+```
+
+### BookMapper.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kai.mapper.BookMapper">
+
+    <insert id="insertBook" parameterType="Books">
+        insert into books(bookName, bookCounts, detail)
+        values (#{bookName}, #{bookCounts}, #{detail});
+    </insert>
+    <delete id="deleteBook" parameterType="int">
+        delete
+        from books
+        where bookID = #{bookID};
+    </delete>
+    <update id="updateBook" parameterType="Books">
+        update books
+        set bookName=#{bookName},
+            bookCounts=#{bookCounts},
+            detail=#{detail}
+        where bookID = #{bookID};
+    </update>
+    <select id="getBook" parameterType="int" resultType="Books">
+        select *
+        from books
+        where bookID = #{bookID};
+    </select>
+    <select id="listBooks" resultType="Books">
+        select *
+        from books;
+    </select>
+
+    <select id="queryBookByName" resultType="Books">
+        select *
+        from books where bookName like "%"#{bookName}"%";
+    </select>
+</mapper>
+```
+
+## pojo
+
+Books.java
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Books {
+    private int bookID;
+    private String bookName;
+    private int bookCounts;
+    private String detail;
+}
+```
+
+## service
+
+```java
+public interface BookService {
+
+    int insertBook(Books books);
+    int deleteBook(int id);
+    int updateBook(Books books);
+    Books getBook(int id);
+    List<Books> listBooks();
+    List<Books> queryBookByName(String bookName);
+}
+```
+
+```java
+public class BookServiceImpl implements BookService {
+    private BookMapper bookMapper;
+    
+    public void setBookMapper(BookMapper bookMapper) {
+        this.bookMapper = bookMapper;
+    }
+
+    @Override
+    public int insertBook(Books books) {
+        return bookMapper.insertBook(books);
+    }
+
+    @Override
+    public int deleteBook(int id) {
+        return bookMapper.deleteBook(id);
+    }
+
+    @Override
+    public int updateBook(Books books) {
+        return bookMapper.updateBook(books);
+    }
+
+    @Override
+    public Books getBook(int id) { return bookMapper.getBook(id);
+    }
+
+    @Override
+    public List<Books> listBooks() {
+        return bookMapper.listBooks();
+    }
+
+    @Override
+    public List<Books> queryBookByName(String bookName) {
+        return bookMapper.queryBookByName(bookName);
+    }
+}
+```
+
+## controller
+
+```java
+@Controller
+@RequestMapping("/book")
+public class BookController {
+
+    //调service层
+
+    @Autowired
+    @Qualifier("BookServiceImpl")
+    private BookService bookService;
+
+    //查询全部书籍,并且返回到一个书籍展示页面
+    @RequestMapping("/allBook")
+    public String list(Model model) {
+        List<Books> books = bookService.listBooks();
+        model.addAttribute("list", books);
+        return "allBook";
+    }
+
+    //跳转到增加书籍页面
+    @RequestMapping("/toaddBook")
+    public String toAddPaper() {
+        return "addBook";
+    }
+
+    //添加书籍的请求
+    @RequestMapping("/addbook")
+    public String addBook(Books book){
+        bookService.insertBook(book);
+        return "redirect:/book/allBook";
+    }
+
+    //跳转到修改页面
+    @RequestMapping("/toUpdate")
+    public String toUpdatePaper(int id,Model model){
+        Books book = bookService.getBook(id);
+        model.addAttribute("getbook",book);
+        return "updateBook";
+    }
+    //修改书籍请求
+    @RequestMapping("/updatebook")
+    public String updateBook(Books book){
+        bookService.updateBook(book);
+        return "redirect:/book/allBook";
+    }
+
+    //删除书籍
+    @RequestMapping("/toDelete/{bookid}")
+    public String deleteBook(@PathVariable("bookid") int id){
+        bookService.deleteBook(id);
+        return "redirect:/book/allBook";
+    }
+
+    //查询书籍
+    @RequestMapping("/queryBook")
+    public String queryBook(String queryBookName,Model model){
+        List<Books> books = bookService.queryBookByName(queryBookName);
+        model.addAttribute("list",books);
+        return "allBook";
+    }
+}
+```
+
+## Web
+
+### web.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <!--DispatchServlet-->
+    <servlet>
+        <servlet-name>springmvc</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <param-value>classpath:applicationContext.xml</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>springmvc</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+
+    <!--乱码过滤-->
+    <filter>
+        <filter-name>encodingFilter</filter-name>
+        <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>utf-8</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>encodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!--session过滤时间-->
+    <session-config>
+        <session-timeout>15</session-timeout>
+    </session-config>
+
+</web-app>
+```
+
+### index.jsp
+
+```html
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+  <head>
+    <title>首页</title>
+    <style>
+      a{
+        text-decoration: none;
+        color:black;
+        font-size: 18px;
+      }
+      h3{
+        width:180px;
+        height: 38px;
+        margin: 100px auto;
+        text-align:center;
+        line-height: 38px;
+        background: deepskyblue;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+  <h3>
+    <a href="${pageContext.request.contextPath}/book/allBook">进入书籍页面</a>
+  </h3>
+  </body>
+</html>
+```
+
+## jsp
+
+### allBook.jsp
+
+```jsp
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>书籍展示</title>
+    <%--BootStrap--%>
+    <link href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+<body>
+<div class="container">
+
+    <div class="rew clearfix">
+        <div class="col-md-12 colum">
+            <div class="page-header">
+                <h1>
+                    <small>书籍列表</small>
+                </h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 column">
+                <a class="btn btn-primary" href="${pageContext.request.contextPath}/book/toaddBook">新增书籍</a>
+                <a class="btn btn-primary" href="${pageContext.request.contextPath}/book/allBook">全部书籍</a>
+            </div>
+            <div class="col-md-4 column"></div>
+            <div class="col-md-4 column">
+                <form action="${pageContext.request.contextPath}/book/queryBook" method="post" style="float:right"
+                      class="form-inline">
+                    <input type="text" name="queryBookName" class="form-control" placeholder="请输入要查询的书籍名称">
+                    <input type="submit" value="查询" class="btn btn-primary">
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="row clearfix">
+        <div class="col-md-12 colum">
+            <table class="table table-hover table-striped">
+                <thead>
+                <tr>
+                    <th>书籍编号</th>
+                    <th>书籍名称</th>
+                    <th>书籍数量</th>
+                    <th>书籍详情</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <%--书籍从数据库中查询出来,从list中遍历--%>
+                <tbody>
+                <c:forEach var="book" items="${list}">
+                    <tr>
+                        <td>${book.bookID}</td>
+                        <td>${book.bookName}</td>
+                        <td>${book.bookCounts}</td>
+                        <td>${book.detail}</td>
+                        <td>
+                            <a href="${pageContext.request.contextPath}/book/toUpdate?id=${book.bookID}">修改</a>
+                            &nbsp; | &nbsp;
+                            <a href="${pageContext.request.contextPath}/book/toDelete/${book.bookID}">删除</a>
+                        </td>
+                    </tr>
+                </c:forEach>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+```
+
+### addBook.jsp
+
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>新增书籍</title>
+    <link href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+<body>
+<div class="container">
+
+    <div class="rew clearfix">
+        <div class="col-md-12 colum">
+            <div class="page-header">
+                <h1>
+                    <small>新增书籍</small>
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <form action="${pageContext.request.contextPath}/book/addbook" method="post">
+        <div class="form-group">
+            <label for="book1">书籍名称</label>
+            <input type="text" name="bookName" class="form-control" id="book1" required>
+        </div>
+        <div class="form-group">
+            <label for="book2">书籍数量</label>
+            <input type="text" name="bookCounts" class="form-control" id="book2" required>
+        </div>
+        <div class="form-group">
+            <label for="book3">书籍描述</label>
+            <input type="text" name="detail" class="form-control" id="book3" required>
+        </div>
+        <div class="form-group">
+            <input type="submit" class="form-control" value="添加">
+        </div>
+    </form>
+
+</div>
+</body>
+</html>
+```
+
+### updateBook.jsp
+
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>修改书籍</title>
+    <link href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+<body>
+<div class="container">
+
+    <div class="rew clearfix">
+        <div class="col-md-12 colum">
+            <div class="page-header">
+                <h1>
+                    <small>修改书籍</small>
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <form action="${pageContext.request.contextPath}/book/updatebook" method="post">
+
+        <%--隐藏域传递--%>
+        <input type="hidden" name="bookID" value="${getbook.bookID}">
+
+        <div class="form-group">
+            <label for="book1">书籍名称</label>
+            <input type="text" name="bookName" class="form-control" value="${getbook.bookName}" id="book1" required>
+        </div>
+        <div class="form-group">
+            <label for="book2">书籍数量</label>
+            <input type="text" name="bookCounts" class="form-control" value="${getbook.bookCounts}" id="book2" required>
+        </div>
+        <div class="form-group">
+            <label for="book3">书籍描述</label>
+            <input type="text" name="detail" class="form-control" value="${getbook.detail}" id="book3" required>
+        </div>
+        <div class="form-group">
+            <input type="submit" class="form-control" value="修改">
+        </div>
+    </form>
+
+</div>
+</body>
+</html>
+```
+

@@ -1230,8 +1230,6 @@ NEVER：以非事务方式执行，如果当前存在事务，则抛出异常。
 NESTED：支持当前事务，如果当前事务存在，则执行一个嵌套事务，如果当前没有事务，就新建一个事务。
 ```
 
-
-
 ```xml
 <!--配置声明式事务-->
 <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
