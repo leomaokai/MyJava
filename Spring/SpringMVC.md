@@ -1,3 +1,18 @@
+```
+<!--文件上传-->
+<dependency>
+    <groupId>commons-fileupload</groupId>
+    <artifactId>commons-fileupload</artifactId>
+    <version>1.3.3</version>
+</dependency>
+<!--servlet-api导入高版本的-->
+<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <version>4.0.1</version>
+</dependency>
+```
+
 # SpringMVC
 
 MVC是将业务逻辑、数据、显示分离的方法来组织代码
@@ -1847,6 +1862,166 @@ public boolean preHandle(HttpServletRequest request, HttpServletResponse respons
     }
     response.sendRedirect(request.getContextPath()+"/login");
     return false;
+}
+```
+
+# File
+
+如果要使用Spring的文件上传功能，需要在上下文中配置MultipartResolver
+
+前端表单要求：为了能上传文件，必须将表单的method设置为post，并将enctype设置为multipart/form-data。只有这样的情况下，浏览器才会把用户选择的文件以二进制数据发送给服务器：
+
+对表单中的enctype属性详细说明：
+
+* application/x-www=form-urlencoded：默认方式只处理表单域中的value属性值，采用这种编码方式的表单会将表单域中的值处理成URL编码方式
+* mutipart/form-data：这种编码方式会以二进制流的方式来处理表单数据，这种编码方式会把文件域指定文件的内容也封装到请求参数中，不会对字符编码
+* text/plain：除了把空格转换为"+"号外，其他字符都不做编码处理，这种方式适用直接通过表单发送邮件
+
+```html
+<form action="${pageContext.request.contextPath}/upload" enctype="multipart/form-data" method="post">
+    <input type="file" name="file"/>
+    <input type="submit" value="upload">
+</form>
+```
+
+SpringMVC为文件上传提供了直接的支持，这种支持是用即插即用的MultipartResolver实现
+
+SpringMVC 使用 Apache Commons FileUpload 技术实现了一个     MultipartResolver 实体类：CommonsMultipartResolver。SpringMVC 的文件上传还需要依赖 Apache Commons FileUpload 的组件
+
+```xml
+<!--文件上传-->
+<dependency>
+    <groupId>commons-fileupload</groupId>
+    <artifactId>commons-fileupload</artifactId>
+    <version>1.3.3</version>
+</dependency>
+<!--servlet-api导入高版本的-->
+<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <version>4.0.1</version>
+</dependency>
+```
+
+## 文件上传
+
+spring.xml配置
+
+```xml
+<!--文件上传配置-->
+<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+    <!--请求的编码格式,必须和JSP的pageEncoding属性一致,以便正确读取表单的内容,默认为ISO-8859-1-->
+    <property name="defaultEncoding" value="utf-8"/>
+    <!--上传文件大小限制,单位为字节(10485760=10M)-->
+    <property name="maxUploadSize" value="10485760"/>
+    <property name="maxInMemorySize" value="40960"/>
+</bean>
+```
+
+FileController.java
+
+```java
+//@RequestParam("file")将name=file控件得到的文件封装成CommonsMultipartFile对象
+//批量上传CommonsMultipartFile则为数组即可
+@RequestMapping("/upload")
+public String fileUpload1(@RequestParam("file")CommonsMultipartFile file, HttpServletRequest request) throws IOException {
+    //获取文件名:file.getOriginalFilename();
+    String uploadFileName = file.getOriginalFilename();
+
+    //如果文件名为空,直接返回首页
+    if("".equals(uploadFileName)){
+        return "redirect:/index.jsp";
+    }
+    System.out.println("filename:"+uploadFileName);
+
+    //上传路径保存位置
+    String path = request.getServletContext().getRealPath("/upload");
+    //如果路径不存在则创建一个
+    File realPath = new File(path);
+    if(!realPath.exists()){
+        realPath.mkdir();
+    }
+    System.out.println("filePath:"+realPath);
+
+    //文件输入流
+    InputStream is = file.getInputStream();
+    //文件输出流
+    OutputStream os = new FileOutputStream(new File(realPath, uploadFileName));
+
+    //读取写出
+    int len=0;
+    byte[] buffer = new byte[1024];
+    while((len=is.read(buffer))!=-1){
+        os.write(buffer,0,len);
+        os.flush();
+    }
+    os.close();
+    is.close();
+    return "redirect:/index.jsp";
+}
+```
+
+```java
+//采用file.TransferTo来保存上传的文件
+@RequestMapping("/upload2")
+public String fileUpload2(@RequestParam("file")CommonsMultipartFile file,HttpServletRequest request) throws IOException {
+    
+    //上传路径保存设置
+    String path = request.getServletContext().getRealPath("/upload");
+    File realPath = new File(path);
+    if(!realPath.exists()){
+        realPath.mkdir();
+    }
+    //上传文件地址
+    System.out.println("uploadFilePath:"+realPath);
+    //通过CommonsMultipartFile得方法直接写文件
+    file.transferTo(new File(realPath+"/"+file.getOriginalFilename()));
+
+    return "redirect:/index.jsp";
+}
+```
+
+## 文件下载
+
+设置response响应头
+
+读取文件 InputStream
+
+写文件	OutputStream
+
+执行操作
+
+关闭流,先开后关
+
+```java
+@RequestMapping("/download")
+public String downLoads(HttpServletResponse response, HttpServletRequest request) throws Exception {
+    //要下载图片的地址
+    String path = request.getServletContext().getRealPath("/upload");
+    String fileName = "hhxx.jpg";
+    //设置response响应头
+    response.reset();//设置页面不存在,清空buffer
+    response.setCharacterEncoding("utf-8");//字符编码
+    response.setContentType("multipart/form-data");
+    //设置响应头
+    response.setHeader("Content-Disposition",
+            "attachment;fileName=" + URLEncoder.encode(fileName, "utf-8"));
+    File file = new File(path, fileName);
+    //读取文件输入流
+    FileInputStream is = new FileInputStream(file);
+    //写出文件输出流
+    OutputStream out = response.getOutputStream();
+
+    byte[] buff = new byte[1024];
+    int index = 0;
+    //执行写出操作
+    while ((index = is.read(buff)) != -1) {
+        out.write(buff, 0, index);
+        out.flush();
+    }
+    out.close();
+    is.close();
+    return null;
 }
 ```
 
