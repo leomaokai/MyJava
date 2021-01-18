@@ -572,3 +572,437 @@ import vueRouter from 'vue-router'
 Vue.use(VueRouter);
 ```
 
+测试:
+
+在`components`目录下存放我们自己编写的组件
+
+```vue
+<!--Content.vue-->
+<template>
+<h1>内容页</h1>
+</template>
+
+<script>
+    export default {
+        name: "Content"
+    }
+</script>
+
+<style scoped>
+
+</style>
+```
+
+```vue
+<!--Main.vue-->
+<template>
+<h1>首页</h1>
+</template>
+
+<script>
+    export default {
+        name: "Main"
+    }
+</script>
+
+<style scoped>
+
+</style>
+```
+
+ 在src目录下新建文件夹`router`,建立`index.js`文件专门存放路由
+
+```js
+import Vue from 'vue'
+//导入路由插件
+import VueRouter from 'vue-router'
+//导入上面定义的组件
+import Content from '../components/Content'
+import Main from '../components/Main'
+//安装路由
+Vue.use(VueRouter);
+
+//配置导出路由
+export default new VueRouter({
+    routes:[
+        {
+            //路由路径
+            path:'/content',
+            //路由名称
+            name:'content',
+            //跳转的组件
+            component:Content
+        },
+        {
+            //路由路径
+            path:'/main',
+            //路由名称
+            name:'main',
+            //跳转的组件
+            component:Main
+        }
+    ]
+});
+```
+
+在`main.js`中配置路由
+
+```js
+import Vue from 'vue'
+import App from './App'
+
+//导入上面创建的路由配置目录
+import router from './router'
+//关闭生产模式下给出的提示
+Vue.config.productionTip = false;
+
+new Vue({
+  el: '#app',
+  //配置路由
+  router,
+  components: { App },
+  template: '<App/>'
+})
+```
+
+`App.vue`做一个页面跳转
+
+```vue
+<template>
+  <div id="app">
+    <h1>Vue-Router</h1>
+    <router-link to="/main">首页</router-link>
+    <router-link to="/content">内容页</router-link>
+    <router-view></router-view>
+  </div>
+</template>
+```
+
+# vue+elementUI
+
+## 创建工程
+
+创建一个名为 hello-vue 的工程`vue init webpack hello-vue`
+
+安装依赖
+
+```bash
+#进入工程项目
+cd hello-vue
+#安装 vue-router
+npm install vue-router --save-dev
+#安装element-ui
+npm i element-ui -S
+#安装依赖
+npm install
+#安装SASS加载器
+cnpm install sass-loader node-sass --save-dev
+#启动测试
+npm run dev
+```
+
+Npm命令解释:
+
+* `npm install moduleName`:安装模块到项目目录下
+* `npm install -g moduleName`:  `-g`的意思是将模块安装到全局
+* `npm install --save moduleName`: `--save`的意思是将模块安装到项目目录下,并在 package 文件的 dependencies 节点写入依赖,`-S`为缩写
+* `npm install --save-dev moduleName`:  `--save-dev`的意思是将模块安装到项目目录下,并在package文件的 devDependencies 节点写入依赖,`-D`为缩写
+
+![image-20210118191215599](Vue.assets/image-20210118191215599.png)
+
+## views/Login.vue
+
+```vue
+<template>
+  <div>
+    <el-card class="box-card">
+      <el-form ref="loginForm" :model="form" :rules="rules" label-width="80px" class="login-box">
+        <h3 class="login-title">欢迎登录</h3>
+        <el-form-item label="账号" prop="username">
+          <el-input type="text" placeholder="请输入账号" v-model="form.username"/>
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input type="password" placeholder="请输入密码" v-model="form.password"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" v-on:click="onSubmit('loginForm')">登录</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-dialog
+      title="温馨提示"
+      :visible.sync="dialogVisible"
+      width="30%"
+      :before-close="handleClose">
+      <span>请输入账号和密码</span>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
+      </span>
+    </el-dialog>
+  </div>
+</template>
+<script>
+export  default {
+  name:"Login",
+  data(){
+    return {
+      form:{
+        username: '',
+        password: ''
+      },
+      //表单验证，需要再el-form-item 元素中增加prop属性
+      rules:{
+        username:[
+            {required:true,message:'账号不能为空',trigger:'blur'}
+          ],
+    password:[
+    {required: true,message: '密码不能为空',trigger:'blur'}
+          ]
+  },
+    //对话框显示和隐藏
+    dialogVisible:false
+  }
+  },
+  methods:{
+    onSubmit(formName) {
+      //为表单绑定验证功能
+      this.$refs[formName].validate((valid) =>{
+        if (valid){
+          //使用 vue-router路由到指定页面，该方式称之为编程式导航
+          this.$router.push("/main");
+        } else {
+          this.dialogVisible = true;
+          return false;
+        }
+      });
+    },
+    handleClose:function (){
+      console.log("Handle Close,空函数")
+    }
+  }
+}
+</script>
+<style scoped>.box-card {width: 480px;margin: auto;}</style>
+```
+
+## view/Main.vue
+
+```vue
+<template>
+  <h1>首页</h1>
+</template>
+
+<script>
+export default {
+  name: "Main"
+}
+</script>
+
+<style scoped>
+
+</style>
+```
+
+## router/index.js
+
+```js
+import Vue from 'vue'
+import Router from 'vue-router'
+
+import Main from '../views/Main'
+import Login from '../views/Login'
+
+Vue.use(Router);
+
+export default new Router({
+  routes: [
+    {
+      path: '/main',
+      component: Main
+    },
+    {
+      path: '/login',
+      component: Login
+    }
+  ]
+});
+```
+
+## main.js
+
+```js
+import Vue from 'vue'
+import App from './App'
+
+import router from './router'
+
+import ElementUI from 'element-ui'
+import 'element-ui/lib/theme-chalk/index.css'
+
+Vue.use(ElementUI);
+
+new Vue({
+  el: '#app',
+
+  router,
+  render: h => h(App)
+})
+```
+
+## App.vue
+
+```vue
+<template>
+  <div id="app">
+    <router-link to="/main">首页</router-link>
+    <router-link to="/login">登录页</router-link>
+    <router-view></router-view>
+  </div>
+</template>
+
+<script>
+
+
+export default {
+  name: 'App',
+}
+</script>
+```
+
+## 路由嵌套
+
+![image-20210118195900007](Vue.assets/image-20210118195900007.png)
+
+创建一个user目录,创建用户信息和用户列表组件
+
+```vue
+<template>
+<h1>用户列表</h1>
+</template>
+
+<script>
+export default {
+  name: "UserList"
+}
+</script>
+
+<style scoped>
+
+</style>
+```
+
+```vue
+<template>
+<h1>个人信息</h1>
+</template>
+
+<script>
+export default {
+  name: "UserProfile"
+}
+</script>
+
+<style scoped>
+
+</style>
+```
+
+修改`index.js`路由配置,在Main组件中嵌套两个用户组件
+
+```js
+import Vue from 'vue'
+import Router from 'vue-router'
+
+import Main from '../views/Main'
+import Login from '../views/Login'
+import List from '../views/user/List'
+import Profile from '../views/user/Profile'
+
+Vue.use(Router);
+
+export default new Router({
+  routes: [
+    {
+      path: '/main',
+      component: Main,
+      //嵌套路由
+      children: [
+        {path: '/user/profile', component: Profile},
+        {path: '/user/list', component: List}
+      ]
+    },
+    {
+      path: '/login',
+      component: Login
+    }
+  ]
+});
+```
+
+修改Main组件
+
+```vue
+<template>
+  <div>
+    <el-container>
+      <el-aside width="200px">
+        <el-menu :default-openeds="['1']">
+          <el-submenu index="1">
+            <template slot="title"><i class="el-icon-caret-right"></i>用户管理</template>
+            <el-menu-item-group>
+              <el-menu-item index="1-1">
+                <router-link to="/user/profile">个人信息</router-link>
+              </el-menu-item>
+              <el-menu-item index="1-2">
+                <router-link to="/user/list">用户列表</router-link>
+              </el-menu-item>
+            </el-menu-item-group>
+          </el-submenu>
+          <el-submenu index="2">
+            <template slot="title"><i class="el-icon-caret-right"></i>内容管理</template>
+            <el-menu-item-group>
+              <el-menu-item index="2-1">分类管理</el-menu-item>
+              <el-menu-item index="2-2">内容列表</el-menu-item>
+            </el-menu-item-group>
+          </el-submenu>
+        </el-menu>
+      </el-aside>
+
+      <el-container>
+        <el-header style="text-align: right; font-size: 12px">
+          <el-dropdown>
+            <i class="el-icon-setting" style="margin-right:15px"></i>
+            <el-dropdown-menu slot="dropdown">
+              <el-dropdown-item>个人信息</el-dropdown-item>
+              <el-dropdown-item>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </el-dropdown>
+        </el-header>
+
+        <el-main>
+          <router-view/>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "Main"
+}
+</script>
+
+<style scoped>
+.el-header {
+  background-color: #048bd1;
+  color: #333;
+  line-height: 60px;
+}
+
+.el-aside {
+  color: #333;
+}
+</style>
+```
