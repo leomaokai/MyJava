@@ -1,23 +1,8 @@
-```
-<!--文件上传-->
-<dependency>
-    <groupId>commons-fileupload</groupId>
-    <artifactId>commons-fileupload</artifactId>
-    <version>1.3.3</version>
-</dependency>
-<!--servlet-api导入高版本的-->
-<dependency>
-    <groupId>javax.servlet</groupId>
-    <artifactId>javax.servlet-api</artifactId>
-    <version>4.0.1</version>
-</dependency>
-```
-
 # SpringMVC
 
 MVC是将业务逻辑、数据、显示分离的方法来组织代码
 
-MVC主要作用是降低了视图与1业务逻辑间的双向耦合
+MVC主要作用是降低了视图与业务逻辑间的双向耦合
 
 MVC不是设计模式，而实一种架构模式
 
@@ -1904,6 +1889,21 @@ SpringMVC 使用 Apache Commons FileUpload 技术实现了一个     MultipartRe
 ```
 
 ## 文件上传
+
+```xml
+<!--文件上传-->
+<dependency>
+    <groupId>commons-fileupload</groupId>
+    <artifactId>commons-fileupload</artifactId>
+    <version>1.3.3</version>
+</dependency>
+<!--servlet-api导入高版本的-->
+<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <version>4.0.1</version>
+</dependency>
+```
 
 spring.xml配置
 

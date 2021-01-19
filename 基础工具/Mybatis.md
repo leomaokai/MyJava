@@ -17,7 +17,7 @@ MyBatis是一款优秀的持久层框架,支持自定义SQL,存储过程以及�
 ```properties
 #db.properties
 driver=com.mysql.cj.jdbc.Driver
-url=jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+url=jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
 username=root
 password=123456
 ```
