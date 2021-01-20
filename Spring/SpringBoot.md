@@ -488,3 +488,230 @@ public class JDBCController {
 }
 ```
 
+# 整合Druid
+
+```xml
+<!-- https://mvnrepository.com/artifact/com.alibaba/druid -->
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>druid</artifactId>
+    <version>1.2.4</version>
+</dependency>
+
+<dependency>
+    <groupId>com.github.AnonymousMister</groupId>
+    <artifactId>druid-spring-boot-starter</artifactId>
+    <version>1.1.18_dynamic</version>
+</dependency>
+```
+
+修改配置,添加type
+
+```yml
+spring:
+  datasource:
+    username: root
+    password: "123456"
+    url: jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+```
+
+druid 数据源专有配置
+
+```yml
+spring:
+  datasource:
+    username: root
+    password: "123456"
+    url: jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+
+    # druid数据源专有配置
+    initial-size: 5
+    min-idle: 5
+    max-active: 20
+    max-wait: 60000
+    time-between-eviction-runs-millis: 60000
+    min-evictable-idle-time-millis: 300000
+    validation-query: SELECT 1 FROM DUAL
+    test-while-idle: true
+    test-on-borrow: false
+    test-on-return: false
+    pool-prepared-statements: true
+    filters: stat,wall,log4j
+    max-pool-prepared-statement-per-connection-size: 20
+    use-global-data-source-stat: true
+    connect-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500
+
+    # 配置监控拦截器filters,stat:监控统计,log4j:日志记录,wall:防御sql注入
+    # 如果允许时报错 java.lang.ClassNotFoundException: org.apache.log4j.Priority
+    # 则导入log4j 依赖即可
+```
+
+druid配置类
+
+```java
+@Configuration
+public class DruidConfig {
+
+    //将配置类和yml绑定
+    @Bean
+    @ConfigurationProperties(prefix = "spring.datasource")
+    public DataSource druidDataSource() {
+        return new DruidDataSource();
+    }
+
+    //后台监控
+    //因为springboot内置了 servlet容器,所以没有web.xml,替代方法如下
+    @Bean
+    public ServletRegistrationBean statViewServlet() {
+        ServletRegistrationBean<StatViewServlet> bean = new ServletRegistrationBean<>(new StatViewServlet(), "/druid/*");
+
+        //后台需要有人登录,账号密码配置
+        HashMap<String, String> initParameters = new HashMap<>();
+        //增加配置,key是固定的
+        initParameters.put("loginUsername", "admin");
+        initParameters.put("loginPassword", "111111");
+        //允许谁能访问
+        initParameters.put("allow", "");//参数为空,所有人可以访问
+        //禁止谁能访问
+        //initParameters.put("kai","192.168.123.12");
+        bean.setInitParameters(initParameters);//初始化操作
+        return bean;
+    }
+
+    //filter
+    @Bean
+    public FilterRegistrationBean webStatFilter(){
+        FilterRegistrationBean bean = new FilterRegistrationBean();
+        bean.setFilter(new WebStatFilter());
+        //可以过滤哪些请求
+        HashMap<String, String> initParameters = new HashMap<>();
+        //这些东西不进行统计
+        initParameters.put("exclusions","*.js,*.css,/druid/*");
+        bean.setInitParameters(initParameters);
+        return bean;
+    }
+}
+```
+
+# 整合Mybatis
+
+整合包
+
+mybatis-spring-boot-starter
+
+```xml
+<!-- https://mvnrepository.com/artifact/org.mybatis.spring.boot/mybatis-spring-boot-starter -->
+<dependency>
+    <groupId>org.mybatis.spring.boot</groupId>
+    <artifactId>mybatis-spring-boot-starter</artifactId>
+    <version>2.1.4</version>
+</dependency>
+```
+
+创建新项目
+
+![image-20210120102903548](SpringBoot.assets/image-20210120102903548.png)
+
+application.yml配置
+
+```yml
+spring:
+  datasource:
+    username: root
+    password: "123456"
+    url: jdbc:mysql://localhost:3306/mybatis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+#整合mybatis
+mybatis:
+  type-aliases-package: com.kai.demo.pojo  #别名
+  mapper-locations: mybatis/mapper/*.xml   #注册mapper.xml
+```
+
+建立实体类和mapper
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class MyUser {
+
+    private int id;
+    private String name;
+    private String pwd;
+}
+```
+
+```java
+//这个注解表示了这是一个mybatis的Mapper类
+@Mapper
+@Repository
+public interface UserMapper {
+
+    List<MyUser> listUsers();
+    MyUser getUser(int id);
+    int addUser(MyUser myUser);
+    int updateUser(MyUser myUser);
+    int deleteUser(int id);
+}
+```
+
+编写mapper.xml,在resources/mabatis/mapper目录下
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kai.demo.mapper.UserMapper">
+
+    <!--    查询语句,id对应方法名字,resultType是返回一个结果(Myuser)-->
+    <select id="listUsers" resultType="MyUser">
+        select * from mybatis.myuser;
+    </select>
+    <select id="getUser" parameterType="int" resultType="MyUser">
+        select * from mybatis.myuser where id=#{id};
+    </select>
+
+    <!--对象中的属性可以直接取出来-->
+    <insert id="addUser" parameterType="MyUser">
+        insert into mybatis.myuser(id,name,pwd) values(#{id},#{name},#{pwd});
+    </insert>
+
+    <update id="updateUser" parameterType="MyUser">
+        update mybatis.myuser set name=#{name},pwd=#{pwd} where id=#{id};
+    </update>
+
+    <delete id="deleteUser" parameterType="int">
+        delete from mybatis.myuser where id =#{id};
+    </delete>
+    
+</mapper>
+```
+
+测试
+
+```java
+@RestController
+public class UserController {
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @GetMapping("/listusers")
+    public List<MyUser> listUsers(){
+        List<MyUser> myUsers = userMapper.listUsers();
+        return myUsers;
+    }
+}
+```
+
+# SpringSecurity
+
+安全第一
+
+SpringSecurity是一个身份认证和权限控制的框架
