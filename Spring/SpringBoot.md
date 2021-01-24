@@ -714,4 +714,468 @@ public class UserController {
 
 安全第一
 
-SpringSecurity是一个身份认证和权限控制的框架
+SpringSecurity是一个身份认证和权限控制的框架,也是SpringBoot 底层安全模块默认的技术选型,可以实现强大的Web安全控制
+
+我们仅需要引入`spring-boot-starter-security`启动器,进行少量的配置,即可实现强大的安全管理
+
+几大类
+
+* WebSecurityConfigurerAdapter	自定义Security策略
+* AuthenticationManagerBuilder    自定义认证策略
+* @EnableWebSecurity    :开启WebSecurity模式
+
+SpringSecurity 的两个主要目标是认证和授权
+
+认证Authentication
+
+授权Authorization
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+```
+
+认证授权
+
+```java
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    //授权
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        //首页所有人可以访问,但是功能页只有对应有权限的人才能访问
+        http.authorizeRequests()
+            .antMatchers("/").permitAll()
+            .antMatchers("/level1/**").hasRole("vip1")
+            .antMatchers("/level2/**").hasRole("vip2")
+            .antMatchers("/level3/**").hasRole("vip3");
+
+        //没有权限默认到登录页
+        http.formLogin();
+        //定制登录页
+        //http.formLogin().loginPage("/login");
+        //开启注销功能
+        http.logout().logoutSuccessUrl("/");
+        //开启记住我功能
+        http.rememberMe();//默认保存两周
+    }
+
+    //认证
+    //密码编码: PasswordEncoder
+    //在springSecurity 5.0+ 新增了很多加密方式
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.inMemoryAuthentication().passwordEncoder(new BCryptPasswordEncoder())
+            .withUser("kai1").password(new BCryptPasswordEncoder().encode("123456")).roles("vip1","vip2")
+            .and()
+            .withUser("kai2").password(new BCryptPasswordEncoder().encode("123456")).roles("vip1","vip2","vip3")
+            .and()
+            .withUser("kai3").password(new BCryptPasswordEncoder().encode("123456")).roles("vip1");
+    }
+}
+```
+
+```xml
+<!--thymeleaf与security整合包-->
+<dependency>
+    <groupId>org.thymeleaf.extras</groupId>
+    <artifactId>thymeleaf-extras-springsecurity5</artifactId>
+</dependency>
+```
+
+# Shiro
+
+Apache Shiro 是一个Java 的安全框架
+
+Shiro 可以非常容易开发出足够好的应用,不仅可以用在JavaSE 环境,也可以用在JavaEE 环境
+
+Shiro 可以完成认证,授权,加密,会话管理,Web集成,缓存等
+
+# Swagger
+
+号称世界上最流行的API框架
+
+RestFul Api : 文档在线自动生成工具   Api文档与Api定义同步更新
+
+直接运行,可以在线测试API接口
+
+支持多种语言
+
+[官网](https://swagger.io/)
+
+在项目中使用Swagger 需要 springfox;
+
+* swagger2
+* ui
+
+## 集成
+
+```xml
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger2</artifactId>
+    <version>2.9.2</version>
+</dependency>
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger-ui</artifactId>
+    <version>2.9.2</version>
+</dependency>
+```
+
+```java
+@Configuration
+@EnableSwagger2 //开启swagger
+public class SwaggerConfig {
+}
+```
+
+![image-20210120164150463](SpringBoot.assets/image-20210120164150463.png)
+
+## 配置
+
+Swagger的bean实例 Docket
+
+>配置基本信息
+
+```java
+@Configuration
+@EnableSwagger2 //开启swagger
+public class SwaggerConfig {
+
+    //配置了Swagger的Docket实例
+    @Bean
+    public Docket docket(){
+        return new Docket(DocumentationType.SWAGGER_2)
+                .apiInfo(this.apiInfo());
+    }
+
+    //配置Swagger信息=apiInfo()
+    private ApiInfo apiInfo(){
+        //作者信息
+        Contact contact = new Contact("kai", "https://github.com/leomaokai", "leomaokai@163.com");
+
+        return new ApiInfo(
+                "Kai Swagger API",
+                "从入门到夺门而出",
+                "1.0",
+                "https://github.com/leomaokai",
+                contact,
+                "Apache 2.0",
+                "http://www.apache.org/licenses/LICENSE-2.0",
+                new ArrayList());
+    }
+}
+```
+
+> 配置扫描接口
+
+```java
+@Bean
+public Docket docket(){
+    return new Docket(DocumentationType.SWAGGER_2)
+            .apiInfo(this.apiInfo())
+            .select()
+            //RequestHandlerSelectors 配置要扫描接口的方式
+            //basePackage 指定要扫描的包
+            //any() 扫描全部
+            //none() 都不扫描
+            //withClassAnnotation: 扫描类上的注解
+            //withMethodAnnotation: 扫描方法上的注解
+            .apis(RequestHandlerSelectors.basePackage("com.kai.swagger.controller"))
+            //过滤
+            .paths(PathSelectors.ant("/kai/**"))
+            .build()
+            ;
+}
+```
+
+> 配置扫描环境
+
+```java
+@Configuration
+@EnableSwagger2 //开启swagger
+public class SwaggerConfig {
+
+    //配置了Swagger的Docket实例
+    @Bean
+    public Docket docket(Environment environment){
+
+        //设置要显示的Swagger环境
+        Profiles profiles = Profiles.of("dev");
+        //通过environment.acceptsProfiles判断是否出来自己设定的环境当中
+        boolean flag = environment.acceptsProfiles(profiles);
+
+        return new Docket(DocumentationType.SWAGGER_2)
+                .apiInfo(this.apiInfo())
+                    //关闭swagger
+                //.enable(false)
+                .enable(flag)
+                .select()
+                    //RequestHandlerSelectors 配置要扫描接口的方式
+                    //basePackage 指定要扫描的包
+                    //any() 扫描全部
+                    //none() 都不扫描
+                    //withClassAnnotation: 扫描类上的注解
+                    //withMethodAnnotation: 扫描方法上的注解
+                .apis(RequestHandlerSelectors.basePackage("com.kai.swagger.controller"))
+                    //过滤
+                //.paths(PathSelectors.ant("/kai/**"))
+                .build();
+    }
+
+    //配置Swagger信息=apiInfo()
+    private ApiInfo apiInfo(){
+        //作者信息
+        Contact contact = new Contact("kai", "https://github.com/leomaokai", "leomaokai@163.com");
+
+        return new ApiInfo(
+                "Kai Swagger API",
+                "从入门到夺门而出",
+                "1.0",
+                "https://github.com/leomaokai",
+                contact,
+                "Apache 2.0",
+                "http://www.apache.org/licenses/LICENSE-2.0",
+                new ArrayList());
+    }
+}
+```
+
+> 配置API分组
+
+```
+    //配置分组
+.groupName("leo")
+```
+
+```java
+@Bean
+public Docket docket2(){
+    return new Docket(DocumentationType.SWAGGER_2).groupName("leo2");
+}
+@Bean
+public Docket docket3(){
+    return new Docket(DocumentationType.SWAGGER_2).groupName("leo3");
+}
+```
+
+![image-20210120173440762](SpringBoot.assets/image-20210120173440762.png)
+
+> 实体类配置
+
+```java
+@Api(注释)
+@ApiModel("UserBean")
+public class User {
+
+    @ApiModelProperty("用户名")
+    public String username;
+    @ApiModelProperty("密码")
+    public String password;
+}
+```
+
+```java
+//只要我们接口中返回值存在实体类,就能扫描的Swagger中
+@PostMapping( "/user")
+public User user(){
+    return new User();
+}
+```
+
+![image-20210120174217235](SpringBoot.assets/image-20210120174217235.png)
+
+# 任务
+
+## 异步任务
+
+```java
+@Service
+public class AsyncService {
+
+    //告诉Spring这是一个异步的方法
+    @Async
+    public void hello(){
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("数据正在处理");
+    }
+}
+```
+
+```java
+@RestController
+public class AsyncController {
+
+    @Autowired
+    AsyncService asyncService;
+
+    @GetMapping("/hello")
+    public String hello(){
+        asyncService.hello();
+        return "hello";
+    }
+}
+```
+
+```java
+@EnableAsync//开启异步功能
+@SpringBootApplication
+public class Springboot07TestApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Springboot07TestApplication.class, args);
+    }
+
+}
+```
+
+## 邮件任务
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-mail</artifactId>
+</dependency>
+```
+
+需要配置
+
+```java
+@Autowired
+JavaMailSenderImpl mailSender;
+@Test
+void contextLoads() {
+
+    //一个简单的邮件
+    SimpleMailMessage mailMessage = new SimpleMailMessage();
+    mailMessage.setSubject("notice");
+    mailMessage.setText("hello");
+    mailMessage.setTo("2570650250@qq.com");
+    mailMessage.setFrom("2570650250@qq.com");
+
+    mailSender.send(mailMessage);
+}
+
+@Test
+void test() throws MessagingException {
+    //一个复杂的邮件
+    MimeMessage mimeMessage = mailSender.createMimeMessage();
+    //组装
+    MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+
+    helper.setSubject("hello");
+    helper.setText("<p style='color:red'>hello</p>",true);
+    //附件
+    helper.addAttachment("1.jpg",new File(""));
+
+    helper.setTo("2570650250@qq.com");
+    helper.setFrom("2570650250@qq.com");
+    mailSender.send(mimeMessage);
+}
+```
+
+```java
+/**
+ *
+ * @param html
+ * @param subject
+ * @param text
+ * @throws MessagingException
+ */
+public void sendMail(Boolean html,String subject,String text) throws MessagingException {
+    //一个复杂的邮件
+    MimeMessage mimeMessage = mailSender.createMimeMessage();
+    //组装
+    MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, html);
+
+    helper.setSubject(subject);
+    helper.setText(text,true);
+    //附件
+    helper.addAttachment("1.jpg",new File(""));
+
+    helper.setTo("2570650250@qq.com");
+    helper.setFrom("2570650250@qq.com");
+    mailSender.send(mimeMessage);
+}
+```
+
+## 定时任务
+
+```
+TaskScheduler  任务调度者
+TaskExecutor	任务执行者
+
+@EnableScheduling  开启定时功能的注解
+@Scheduled	什么时候执行
+
+Cron表达式
+```
+
+```java
+@EnableAsync//开启异步功能
+@EnableScheduling //开启定时功能的注解
+@SpringBootApplication
+public class Springboot07TestApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Springboot07TestApplication.class, args);
+    }
+
+}
+```
+
+```java
+@Service
+public class ScheduledService {
+
+    //在一个特定的时间执行这个方法
+    //cron表达式
+    //秒 分 时 日 月 周几
+    @Scheduled(cron="0 * 19 * * ?")
+    public void hello(){
+        System.out.println("hello,schedule");
+    }
+}
+```
+
+# 分布式
+
+## RPC
+
+RPC(Remote Procedure Call) 是指远程过程调用，是一种进程间通信方式,是一种技术的思想，它允许程序调用另一个地址空间(通常是共享网络的另一台机器上)的过程或函数，而不用程序员显示编码这个远程调用的细节，即程序员无论是调用本地还是远程的函数，本质上编写的调用代码基本相同
+
+## Dubbo
+
+Dubbo是一款高性能的、轻量级的开源Java RPC 框架，他提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现
+
+https://dubbo.apache.org/zh/
+
+![image-20210120192819929](SpringBoot.assets/image-20210120192819929.png)
+
+服务提供者(Provider):暴露服务的服务提供方，服务提供者在启动时，想注册中心注册自己提供的服务
+
+服务消费者(Consumer):调用远程服务的服务消费者，服务消费者在启动时，想注册中心订阅自己所需的服务，服务消费者从提供者地址列表中，基于负载均衡算法，选一台提供者进行调用，如果调用失败，在选另一台调用
+
+注册中心(Registry):注册中心返回服务提供者地址列表给消费者，如果有变更，注册中心将基于长连接推送变更数据给消费者
+
+监控中心(Monitor):服务消费者和提供者，在内存中累计调用次数和调用时间，定时每分钟发送一次统计数据到监控中心
+
+调用关系：
+
+* 服务容器负责启动，加载，运行服务提供者
+* 服务提供者在启动时，向注册中心注册自己提供的服务
+* 服务消费者在启动时，向注册中心订阅自己所需的服务
+* 注册中心返回服务提供者地址列表给消费者，如果有变更，注册中心将基于长连接推送变更数据给消费者
+* 服务消费者，从提供者地址列表中，基于软负载均衡算法，选一台提供者进行调用，如果调用失败，再选另一台调用
+* 服务消费者和提供者，在内存中累计调用次数和调用时间，定时每分钟发送一次统计数据到监控中心
+
+zookeeper：
+
