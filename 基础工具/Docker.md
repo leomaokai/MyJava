@@ -612,5 +612,175 @@ test.cpp
 
 备份机制
 
+多个mysql实现数据共享
 
+```bash
+docker run -d -p 3310:3306 -v /home/mysql/conf:/etc/mysql/conf.d -v /home/mysql/data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=123456 --name mysql01 mysql:5.7
+docker run -d -p 3310:3306 -e MYSQL_ROOT_PASSWORD=123456 --name mysql02  --volumes-from mysql01 mysql:5.7
+```
+
+容器之间配置信息的传递,数据卷容器的生命周期一直持续到没有容器使用到为止
+
+但是数据一旦持久化到本地,本地的数据是不会删除的
+
+# DockerFile
+
+DockerFile是用来构建docker镜像的文件,命令参数脚本
+
+构建步骤:
+
+* 编写一个 dockerfile 文件
+* docker bulid 构建成为一个镜像
+* docker run 运行
+* docker push 发布镜像(DockerHub,阿里云镜像仓库)
+
+## DockerFile构建过程
+
+基础知识:
+
+* 每个保留关键字(指令)都是必须大写字母
+* 执行从上到下顺序执行
+*  `#` 表示注释
+* 每个指令都会创建提交一个新的镜像层,并提交
+
+dockerfile是面向开发的
+
+## Dockerfile的指令
+
+```dockerfile
+FROM  		# 基础镜像,一切从这里开始构建,centos
+MAINTAINER	# 镜像是谁写
+RUN		# 镜像构建时需要运行的命令
+ADD		# 步骤,tomcat镜像,tomcat压缩包,添加内容
+WORKDIR	# 镜像的工作目录
+VOLUME	# 挂载的目录
+EXPOSE	# 暴露端口配置
+CMD		# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
+ENTRYPOINT	# 指定这个容器启动时要运行的命令,可以追加命令
+ONBUILD		# 当构建一个被继承 DockerFile 时会运行 ONBUILD 指令
+COPY	# 类似ADD命令,将我们的文件拷贝到镜像中
+ENV		# 构建时设置环境变量
+```
+
+## 实战测试
+
+Docker Hub 中 99%镜像的基础镜像`FROM scratch`\
+
+> 编写mycentos
+
+```dockerfile
+# 编写dockerfile的文件 mydockerfile-centos
+FROM centos
+MAINTAINER kai<123456@qq.com>
+
+ENV MYPATH /usr/local
+WORKDIR $MYPATH	# 工作目录
+
+RUN yum -y install vim	# 添加vim
+RUN yum -y install net-tools	# 添加net-tools
+
+EXPOSE 80
+
+CMD echo $MYPATH
+CMD echo "--------end--------"
+CMD /bin/bash
+```
+
+```dockerfile
+# 构建镜像 docker build
+# docker build -f dockerfile文件路径 -t 镜像名:[版本号] .
+docker build -f mydockerfile-centos -t mycentos:0.1 .
+```
+
+```dockerfile
+# 测试运行
+docker run -it mycentos:0.1
+# 这个centos可以用vim和ifconfig了
+```
+
+```bash
+docker history 镜像id # 查看镜像生成过程
+```
+
+> CMD 和 ENTRYPOINT 的区别
+
+```dockerfile
+CMD		# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
+ENTRYPOINT	# 指定这个容器启动时要运行的命令,可以追加命令
+```
+
+```dockerfile
+FROM centos
+CMD ["ls","-a"]
+```
+
+```
+docker build -f mydockerfile-cmd -t cmdtest .
+```
+
+运行该镜像发现CMD命令生效了
+
+```bash
+[root@iZ8vb7zutfxx5a3uhxmnksZ dockerfiledir]# docker run -it cmdtest
+.   .dockerenv	dev  home  lib64       media  opt   root  sbin	
+[root@iZ8vb7zutfxx5a3uhxmnksZ dockerfiledir]# docker run cmdtest -l
+docker: Error response from daemon: OCI runtime create failed: container_linux.go:370: starting container process caused: exec: "-l": executable file not found in $PATH: unknown.
+ERRO[0000] error waiting for container: context canceled 
+# cmd 的情况下追加-l 替换了文件中 CMD的命令,-l不是命令,所以报错
+```
+
+测试`ENTRYPOINT`,运行时追加命令仍可成功
+
+```dockerfile
+FROM centos
+ENTRYPOINT ["ls","-a"]
+
+docker build -f mudockerfile-entry -t entrytest .
+
+[root@iZ8vb7zutfxx5a3uhxmnksZ dockerfiledir]# docker run 060dd63848c2 -l
+total 56
+drwxr-xr-x   1 root root 4096 Jan 26 13:08 .
+drwxr-xr-x   1 root root 4096 Jan 26 13:08 ..
+-rwxr-xr-x   1 root root    0 Jan 26 13:08 .dockerenv
+lrwxrwxrwx   1 root root    7 Nov  3 15:22 bin -> usr/bin
+drwxr-xr-x   5 root root  340 Jan 26 13:08 dev
+```
+
+## 实战:Tomcat镜像
+
+* 准备镜像文件:tomcat压缩包,jdk压缩包
+* 编写dockerfile文件
+
+```dockerfile
+# Dockerfile,官方默认命名,build时自动寻找这个文件
+FROM centos
+MAINTAINER kai<123456@qq.com>
+
+COPY readme.txt /usr/local/teadme.txt
+# ADD 自动解压
+ADD jdk-8u11-linux-x64.tar.gz /usr/local/
+ADD apache-tomcat-9.0.22.tat.gz /usr/local/
+
+RUN yum -y install vim
+
+ENV MYPATH /usr/local
+WORKDIR $MYPATH
+
+ENV JAVA_HOME /usr/local/jdk1.8_11
+ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+ENV CATALINA_HOME /usr/local/apache-tomcat-9.0.22
+ENV CATALINA_BASH /usr/local/apache-tomcat-9.0.22
+ENV PATH $PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_BASH/bin
+
+EXPOSE 8080
+CMD /usr/local/apache-tomcat-9.0.22/bin/startup.sh && tail -F /usr/local/apache-tomcat-9.0.22/bin/logs/catalina.out
+```
+
+```
+docker build -t mytomcat .
+```
+
+```
+docker run -d -p 9090:8080 --name kaitomcat -v /home/kai/build/tomcat/test:/usr/local/apache-tomcat-9.0.22/webapps/test -v /home/kai/build/tomcat/tomcatlogs:/usr/local/apache-tomcat-9.0.22/logs mytomcat
+```
 
