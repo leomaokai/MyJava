@@ -449,7 +449,8 @@ npm install cnpm -g
 ```
 #安装vue-cli
 cnpm install vue-cli -g
-
+#新版vue-cli
+cnpm install @vue/cli -g
 #测试是否安装成功
 vue list
 ```
