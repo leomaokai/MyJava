@@ -6,7 +6,7 @@ service mysql stop
 
 mysql -u root -p
 
-[MySQL入门笔记](../09_进阶提高/MySQL/MySQL入门.md)
+[MySQL入门笔记](../进阶提高/MySQL/MySQL入门.md)
 
 # 库管理
 

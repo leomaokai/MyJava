@@ -326,6 +326,28 @@ docker cp 容器id:容器内路径 目的的主机路径
 
 # 练习
 
+## MySQL8.0
+
+```bash
+docker pull mysql:8.0
+
+docker run -d -p 3311:3306 --name mysql80 -v /home/mysql8/conf:/etc/mysql -v /home/mysql8/data:/var/lib/mysql -v /home/mysql8/mysql-files:/var/lib/mysql-files/ -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0
+
+docker exec -it mysql80 bash
+
+mysql -uroot -p
+```
+
+更改权限,外部连接
+
+```mysql
+grant all PRIVILEGES on *.* to root@'%' WITH GRANT OPTION;
+
+ALTER user 'root'@'%' IDENTIFIED WITH mysql_native_password BY '123456';
+
+FLUSH PRIVILEGES;
+```
+
 ## 部署Nginx
 
 ```bash
@@ -478,7 +500,7 @@ docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag
 # -p 端口映射
 # -v 数据卷挂载
 # -e 环境配置
-docker run -d -p 3310:3306 -v /home/mysql/conf:/etc/mysql/conf.d -v /home/mysql/data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=123456 --name mysql01 mysql:5.7
+docker run -d -p 3310:3306 -v /home/mysql/conf:/etc/mysql/conf -v /home/mysql/data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=123456 --name mysql01 mysql:5.7
 ```
 
 使用SQLyog连接服务器端口3310
