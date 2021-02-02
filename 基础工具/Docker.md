@@ -206,7 +206,7 @@ docker pull mysql:5.7
 # 根据id删除
 docker rmi -f id
 # 全部删除
-docker rmi -f ${docker images -aq}
+docker rmi -f $(docker images -aq)
 ```
 
 ## 容器命令
@@ -260,7 +260,7 @@ Ctrl + P + Q #容器不停止退出
 ```bash
 docker rm 容器id	#删除指定容器,不能删除正在运行的容器
 #强制删除 rm -f
-docker rm -f ${docker ps -aq}	#删除全部容器
+docker rm -f $(docker ps -aq)	#删除全部容器
 docker ps -a -q | xargs docker rm	#删除所有容器
 ```
 
@@ -805,4 +805,64 @@ docker build -t mytomcat .
 ```
 docker run -d -p 9090:8080 --name kaitomcat -v /home/kai/build/tomcat/test:/usr/local/apache-tomcat-9.0.22/webapps/test -v /home/kai/build/tomcat/tomcatlogs:/usr/local/apache-tomcat-9.0.22/logs mytomcat
 ```
+
+## 发布镜像
+
+> 提交到DockerHub  在服务器上提交镜像
+
+登录
+
+```bash
+[root@iZ8vb7zutfxx5a3uhxmnksZ ~]# docker login -u 04181425
+Password: 
+
+Login Succeeded
+```
+
+提交
+
+```bash
+# 修改要push的镜像的名称
+docker tag hello-world 04181425/hello-world
+# push这个镜像
+docker push 04181425/hello-world
+```
+
+查看仓库
+
+![image-20210131171809346](Docker.assets/image-20210131171809346.png)
+
+> 提交到阿里云镜像服务上
+
+登录阿里云
+
+![image-20210131172409983](Docker.assets/image-20210131172409983.png)
+
+创建命名空间
+
+创建容器镜像
+
+查看仓库
+
+![image-20210131173017249](Docker.assets/image-20210131173017249.png)
+
+```bash
+[root@iZ8vb7zutfxx5a3uhxmnksZ ~]# docker login --username=巴萨名宿马儿 registry.cn-hangzhou.aliyuncs.com
+Password: 
+WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+Login Succeeded
+
+[root@iZ8vb7zutfxx5a3uhxmnksZ ~]# docker tag bf756fb1ae65 registry.cn-hangzhou.aliyuncs.com/04181425/kai:1.0
+[root@iZ8vb7zutfxx5a3uhxmnksZ ~]# docker push registry.cn-hangzhou.aliyuncs.com/04181425/kai:1.0
+The push refers to repository [registry.cn-hangzhou.aliyuncs.com/04181425/kai]
+9c27e219663c: Pushed 
+1.0: digest: sha256:90659bf80b44ce6be8234e6ff90a1ac34acbeb826903b02cfa0da11c82cbc042 size: 525
+```
+
+![image-20210131175713520](Docker.assets/image-20210131175713520.png)
+
+# Docker网络
 
