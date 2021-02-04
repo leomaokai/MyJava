@@ -13,7 +13,7 @@ redis-cli	#连接默认的6379服务
 redis-cli -p port -a password	#连接其它端口号服务
 ```
 
-[Redis入门笔记](../进阶提高/Redis/Redis入门.md)
+[Redis入门笔记](Redis/Redis入门.md)
 
 # 服务器相关命令
 
