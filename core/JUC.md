@@ -868,3 +868,185 @@ CPU 密集型，最大线程数和CPU核数相同，可保证CPU效率最高
   ```
 
 IO 密集型，判断程序任务中十分耗IO的线程，最大线程数要大于IO数
+
+# 函数式接口
+
+函数式接口：只有一个方法的接口
+
+```java
+@FunctionalInterface
+public interface Runnable {
+    public abstract void run();
+}
+```
+
+## Function
+
+输入T类型，返回R类型
+
+![image-20210206171243777](JUC.assets/image-20210206171243777.png)
+
+只要是函数式接口，就可以用lambda表达式简化
+
+```java
+@Test
+public void test01() {
+    // 函数型接口
+    Function<String, String> function = new Function<>() {
+        @Override
+        public String apply(String str) {
+            return str;
+        }
+    };
+    System.out.println(function.apply("aaa"));
+	// aaa
+    Function function1 = (str) -> {
+        return str;
+    };
+    System.out.println(function1.apply("bbb"));
+    // bbb
+}
+```
+
+## Predicate
+
+![image-20210206173154112](JUC.assets/image-20210206173154112.png)
+
+```java
+@Test
+public void test02() {
+    // 断定型接口
+    // 判断字符串是否为空
+    Predicate<String> predicate = new Predicate<>() {
+        @Override
+        public boolean test(String str) {
+            return str.isEmpty();
+        }
+    };
+    System.out.println(predicate.test(""));
+    // true
+
+    Predicate<String> predicate1 = (str) -> {
+        return str.isEmpty();
+    };
+    System.out.println(predicate1.test("aa"));
+    // false
+
+    Predicate<String> predicate2=String::isEmpty;
+    System.out.println(predicate2.test(""));
+    // true
+}
+```
+
+## Consumer
+
+消费型接口，只有输入没有返回值
+
+![image-20210206173415872](JUC.assets/image-20210206173415872.png)
+
+```java
+@Test
+public void test03(){
+
+    Consumer<String> consumer = new Consumer<>() {
+        @Override
+        public void accept(String str) {
+            System.out.println(str);
+        }
+    };
+
+    consumer.accept("hello");
+    // hello
+
+    Consumer<String> consumer1= (str) ->{
+        System.out.println(str);
+    };
+    consumer1.accept("world");
+    // world
+
+    Consumer<String> consumer2=System.out::println;
+    consumer2.accept("Consumer");
+    // Consumer
+}
+```
+
+
+
+## Supplier
+
+供给型接口，没有参数，只有返回值
+
+![image-20210206173932647](JUC.assets/image-20210206173932647.png)
+
+```java
+@Test
+public void test04(){
+    Supplier<String> supplier = new Supplier<>() {
+        @Override
+        public String get() {
+            return "hello";
+        }
+    };
+    System.out.println(supplier.get());
+    // hello
+
+    Supplier<String> supplier1=()->{
+        return "world";
+    };
+    System.out.println(supplier1.get());
+    // world
+}
+```
+
+# Stream
+
+集合负责存储，流负责计算
+
+流运算全部是函数式接口，可以用 Lambda 表达式省略
+
+```java
+public class Demo01 {
+    @Test
+    public void test01(){
+        User a = new User(1, "a", 10);
+        User b = new User(2, "b", 20);
+        User c = new User(3, "c", 30);
+        User d = new User(4, "d", 25);
+        User e = new User(5, "e", 15);
+        List<User> users = Arrays.asList(a, b, c, d, e);
+        users.stream()
+                // 过滤偶数
+                .filter(u->{return u.getId()%2!=0;})
+                // 过滤年龄小于8的
+                .filter(u->{return u.getAge()>8;})
+                // 将名字大写
+                .map(u->{return u.getName().toUpperCase();})
+                // 降序
+                .sorted((u1,u2)->{return u2.compareTo(u1);})
+                // 限制1个
+                .limit(1)
+                // 遍历
+                .forEach(System.out::println);
+    }
+}
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+class User{
+    private int id;
+    private String name;
+    private int age;
+}
+```
+
+# ForkJoin
+
+分支合并，并行执行任务，提高效率
+
+工作窃取，能者多劳，先完成任务的线程可以去执行其他线程的任务
+
+原理：任务队列为双端队列，A线程从队头开始执行，其他线程可以从队尾开始执行
+
+# 异步回调
+
