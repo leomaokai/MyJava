@@ -1048,5 +1048,613 @@ class User{
 
 原理：任务队列为双端队列，A线程从队头开始执行，其他线程可以从队尾开始执行
 
+```java
+public class ForkJoinDemo {
+
+    private static final Integer MAX = 1_000_0000;
+
+    static class MyForkJoinTask extends RecursiveTask<Long> {
+        // 子任务开始计算的值
+        private long startValue;
+
+        // 子任务结束计算的值
+        private long endValue;
+
+        public MyForkJoinTask(long startValue, long endValue) {
+            this.startValue = startValue;
+            this.endValue = endValue;
+        }
+
+        @Override
+        protected Long compute() {
+            // 如果条件成立，说明这个任务所需要计算的数值分为足够小了
+            // 可以正式进行累加计算了
+            if (endValue - startValue < MAX) {
+                // System.out.println("开始计算的部分：startValue = " + startValue + ";endValue = " + endValue);
+                long totalValue = 0;
+                for (long index = this.startValue; index <= this.endValue; index++) {
+                    totalValue += index;
+                }
+                return totalValue;
+            }
+            // 否则再进行任务拆分，拆分成两个任务
+            else {
+                long temp = (startValue + endValue) / 2;
+                MyForkJoinTask subTask1 = new MyForkJoinTask(startValue, temp);
+                subTask1.fork();
+                MyForkJoinTask subTask2 = new MyForkJoinTask(temp + 1, endValue);
+                subTask2.fork();
+                return subTask1.join() + subTask2.join();
+            }
+        }
+    }
+
+    @Test
+    public void test01() {
+        long startTime = System.currentTimeMillis();
+
+        // MAX = 1_000_0000;
+        // 这是Fork/Join框架的线程池
+        ForkJoinPool pool = new ForkJoinPool();
+        ForkJoinTask<Long> taskFuture = pool.submit(new MyForkJoinTask(1, 1_0000_0000));
+        try {
+            long result = taskFuture.get();
+            System.out.println(result);
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace(System.out);
+        }
+
+        long endTime = System.currentTimeMillis();
+        System.out.println(endTime - startTime);
+
+        // 最快30ms
+        // 平均38
+    }
+
+    @Test
+    public void test02() {
+        long startTime = System.currentTimeMillis();
+
+        // 常规方法
+        long result = 0;
+        for (int i = 1; i <= 1_0000_0000; i++) {
+            result += i;
+        }
+        System.out.println(result);
+
+        long endTime = System.currentTimeMillis();
+        System.out.println(endTime - startTime);
+        // 平均45
+    }
+
+    @Test
+    public void test03(){
+        long startTime = System.currentTimeMillis();
+        // stream 并行流
+        //long result= LongStream.rangeClosed(0,1_0000_0000).parallel().reduce(0,Long::sum);
+        long result= LongStream.rangeClosed(0,1_0000_0000).parallel().sum();
+        System.out.println(result);
+        long endTime = System.currentTimeMillis();
+        System.out.println(endTime - startTime);
+        // 评价40
+    }
+}
+```
+
+
+
 # 异步回调
+
+# JMM
+
+## JMM
+
+Volatile 是Java虚拟机提供**轻量级**的同步机制
+
+* 保证在多线程环境下变量的相互可见性与有序性
+
+* 防止指令重排序
+
+* **不保证原子性**
+
+JMM(Java Memory Model) 是 Java 内存模型，是不存在的，概念
+
+关于JMM 的一些约定：
+
+* 线程在解锁前必须把共享变量立刻刷回主存
+* 线程加锁前必须读取主存的最新值到工作内存中
+* 加锁和解锁是同一把锁
+
+## 八种指令
+
+![image-20210206215613790](JUC.assets/image-20210206215613790.png)
+
+
+```markdown
+- lock（锁定）：作用于主内存的变量，把一个变量标识为一条线程独占状态。
+- unlock（解锁）：作用于主内存变量，把一个处于锁定状态的变量释放出来，释放后的变量才可以被其他线程锁定。
+- read（读取）：作用于主内存变量，把一个变量值从主内存传输到线程的工作内存中，以便随后的load动作使用
+- load（载入）：作用于工作内存的变量，它把read操作从主内存中得到的变量值放入工作内存的变量副本中。
+- use（使用）：作用于工作内存的变量，把工作内存中的一个变量值传递给执行引擎，每当虚拟机遇到一个需要使用变量的值的字节码指令时将会执行这个操作。
+- assign（赋值）：作用于工作内存的变量，它把一个从执行引擎接收到的值赋值给工作内存的变量，每当虚拟机遇到一个给变量赋值的字节码指令时执行这个操作。
+- store（存储）：作用于工作内存的变量，把工作内存中的一个变量的值传送到主内存中，以便随后的write的操作。
+- write（写入）：作用于主内存的变量，它把store操作从工作内存中一个变量的值传送到主内存的变量中。
+```
+
+> 八种指令的规则
+
+
+```markdown
+- 不允许read和load、store和write操作之一单独出现
+- 不允许一个线程丢弃它的最近assign的操作，即变量在工作内存中改变了之后必须同步到主内存中。
+- 不允许一个线程无原因地（没有发生过任何assign操作）把数据从工作内存同步回主内存中。
+- 一个新的变量只能在主内存中诞生，不允许在工作内存中直接使用一个未被初始化（load或assign）的变量。即就是对一个变量实施use和store操作之前，必须先执行过了assign和load操作。
+- 一个变量在同一时刻只允许一条线程对其进行lock操作，lock和unlock必须成对出现
+- 如果对一个变量执行lock操作，将会清空工作内存中此变量的值，在执行引擎使用这个变量前需要重新执行load或assign操作初始化变量的值
+- 如果一个变量事先没有被lock操作锁定，则不允许对它执行unlock操作；也不允许去unlock一个被其他线程锁定的变量。
+- 对一个变量执行unlock操作之前，必须先把此变量同步到主内存中（执行store和write操作）。
+```
+
+## Volatile
+
+保证可见性
+
+不保证原子性
+
+原子类可以保证原子性
+
+```java
+public class JMMDemo01 {
+
+    // volatile 不保证原子性
+    private volatile int num = 0;
+    // 原子类的Integer
+    private AtomicInteger atomicInteger = new AtomicInteger();
+
+    // 不是原子性操作
+    public void add1() {
+        num++;
+    }
+
+    // 锁可以实现正确结果
+    public synchronized void add2() {
+        num++;
+    }
+
+    // 使用原子类
+    public void add3() {
+        atomicInteger.getAndIncrement();
+    }
+
+    @Test
+    public void test01() {
+
+        for (int i = 0; i < 20; i++) {
+            new Thread(() -> {
+                for (int j = 0; j < 1000; j++) {
+                    add1(); // 错误
+                    add2(); // 正确
+                    add3(); // 正确
+                }
+            }).start();
+        }
+
+        while (Thread.activeCount() > 2) {
+            Thread.yield();
+        }
+        System.out.println(num);
+        System.out.println(atomicInteger);
+    }
+}
+```
+
+Volatile 可以禁止指令重排
+
+处理器在进行指令重排时,考虑数据之间的依赖性
+
+Volatile 可以在指令间形成内存屏障，避免重排
+
+# 单例模式
+
+## 饿汉式
+
+```java
+// 饿汉式单例
+public class Hungry {
+
+    private Hungry() {
+
+    }
+
+    private final static Hungry HUNGRY = new Hungry();
+
+    public static Hungry getInstance() {
+        return HUNGRY;
+    }
+}
+```
+
+## DCL懒汉式
+
+```java
+// 懒汉式单例
+public class Lazy {
+
+    // 通过标志位判断
+    private static boolean sign = false;
+
+    private Lazy() {
+        // 反射可以破坏单例,在构造函数中判断可以比避免
+        synchronized (Lazy.class) {
+            if (sign == false) {
+                sign = true;
+            } else {
+                throw new RuntimeException("错误");
+            }
+//            if (lazy != null) {
+//                throw new RuntimeException("错误");
+//            }
+        }
+        System.out.println(Thread.currentThread().getName());
+    }
+
+    // private static Lazy lazy;
+    // 必须加上volatile,避免指令重排
+    private volatile static Lazy lazy;
+
+    // 双重检测锁模式的懒汉式单例,DCL懒汉式
+    public static Lazy getInstance() {
+        if (lazy == null) {
+            synchronized (Lazy.class) {
+                if (lazy == null) {
+                    lazy = new Lazy(); // 不是原子性操作
+                    /**
+                     * 分配内存空间
+                     * 执行构造方法,初始化对象
+                     * 把这个对象指向这个空间
+                     *
+                     * 这三步可能发生指令重排
+                     */
+                }
+            }
+        }
+        return lazy;
+    }
+
+    public static void main(String[] args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchFieldException {
+
+//        for (int i = 0; i < 10; i++) {
+//            new Thread(Lazy::getInstance).start();
+//        }
+
+
+        // 反射可以破坏单例,在构造函数中判断可以比避免
+        //Lazy instance1 = Lazy.getInstance();
+//        Constructor<Lazy> declaredConstructor = Lazy.class.getDeclaredConstructor(null);
+//        declaredConstructor.setAccessible(true);
+//        Lazy instance2 = declaredConstructor.newInstance();
+//        Lazy instance3 = declaredConstructor.newInstance();
+//        //System.out.println(instance1.hashCode());
+//        System.out.println(instance2.hashCode());
+//        System.out.println(instance3.hashCode());
+
+        // 标志位判断可以避免通过反射new两个实例,但仍可被反射破环
+        Field sign = Lazy.class.getDeclaredField("sign");
+        sign.setAccessible(true);
+        Constructor<Lazy> declaredConstructor = Lazy.class.getDeclaredConstructor(null);
+        declaredConstructor.setAccessible(true);
+        Lazy instance = declaredConstructor.newInstance();
+        // 将sign重新改为false
+        sign.set(instance,false);
+        Lazy instance1 = declaredConstructor.newInstance();
+        System.out.println(instance.hashCode());
+        System.out.println(instance1.hashCode());
+
+        // 不能通过反射破环枚举
+    }
+}
+```
+
+## 静态内部类
+
+```java
+// 静态内部类实现单例模式
+public class Holder {
+
+    private Holder(){
+
+    }
+    public static Holder getInstance(){
+        return InnerClass.HOLDER;
+    }
+    public static class InnerClass{
+        private static final Holder HOLDER=new Holder();
+    }
+}
+```
+
+## 枚举实现
+
+![image-20210207140327986](JUC.assets/image-20210207140327986.png)
+
+枚举不能用反射实例化
+
+```java
+// 枚举也是一个Class类,默认单例
+public enum EnumSingle {
+    INSTANCE;
+
+    public EnumSingle getInstance(){
+        return INSTANCE;
+    }
+}
+
+class Test{
+    public static void main(String[] args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+
+        EnumSingle instance = EnumSingle.INSTANCE;
+        EnumSingle instance1 = EnumSingle.INSTANCE;
+        System.out.println(instance.hashCode());
+        System.out.println(instance1.hashCode());
+
+        // 枚举里存在一个有参构造方法
+        Constructor<EnumSingle> declaredConstructor = EnumSingle.class.getDeclaredConstructor(String.class, int.class);
+        declaredConstructor.setAccessible(true);
+        EnumSingle enumSingle = declaredConstructor.newInstance();
+        System.out.println(enumSingle);
+        // error: Cannot reflectively create enum objects
+
+    }
+}
+```
+
+# CAS
+
+## compareAndSet
+
+比较当前工作内存中的值和主内存的值，如果这个值是期望的，则执行操作，如果不是，就一直循环
+
+```java
+// CAS
+public static void main(String[] args) {
+
+    AtomicInteger atomicInteger=new AtomicInteger(1909);
+    // compareAndSet(int expectedValue, int newValue)
+    // 比较并变化,如果期望的值达到了,就改成新值
+    atomicInteger.compareAndSet(1909,2021);
+    System.out.println(atomicInteger.get()); // 2021
+    // CAS 是CPU的并发原语
+
+    atomicInteger.getAndIncrement(); // ++
+
+}
+```
+
+getAndIncrement 就调用了CAS
+
+![image-20210207143023904](JUC.assets/image-20210207143023904.png)
+
+缺点：
+
+* 自旋锁耗时
+* 一次性只能保证一个共享变量的原子性
+* ABA问题，狸猫换太子，内存中的值被其他线程从A换成B又换成A，其他线程不知道
+
+## ABA
+
+```java
+@Test
+public void test01(){
+    AtomicInteger atomicInteger = new AtomicInteger(1);
+
+    // 其他线程将1改为2又改为1
+    atomicInteger.compareAndSet(1,2);
+    atomicInteger.compareAndSet(2,1);
+
+    // 期望将1改为3,但1已经被动过了
+    atomicInteger.compareAndSet(1,3);
+
+    System.out.println(atomicInteger.get());
+}
+```
+
+## 原子引用
+
+带版本号的的原子操作，可以解决ABA问题
+
+和乐观锁的原理相同
+
+```java
+@Test
+public void test02() throws InterruptedException {
+
+    // 初始值为2020,版本号为1
+    Integer expected=2020;
+    AtomicStampedReference<Integer> atomicInteger = new AtomicStampedReference<>(expected, 1);
+
+    new Thread(()->{
+        // 获得版本号
+        int stamp = atomicInteger.getStamp();
+        System.out.println("a:"+stamp);
+
+        try {
+            TimeUnit.SECONDS.sleep(2);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // 将2020更新为2021,版本号+1
+        Integer newValue=2021;
+        atomicInteger.compareAndSet(expected, newValue,stamp,stamp+1);
+
+        // 得到新的版本号
+        int stamp1 = atomicInteger.getStamp();
+        System.out.println("a:"+stamp1);
+
+        // 将2021更新为2020,版本号+1
+        atomicInteger.compareAndSet(newValue,expected,stamp1,stamp1+1);
+
+        int stamp2 = atomicInteger.getStamp();
+        System.out.println("a:"+stamp2);
+    },"a").start();
+
+    new Thread(()->{
+        int stamp = atomicInteger.getStamp();
+        System.out.println("b:"+stamp);
+
+        try {
+            TimeUnit.SECONDS.sleep(4);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // 将2020更新为1
+        Integer newValue=1;
+        boolean b = atomicInteger.compareAndSet(expected, newValue, stamp, stamp + 1);
+
+        // 但版本号不同,更新失败
+        if(!b){
+            System.out.println("error");
+        }
+        int stamp1 = atomicInteger.getStamp();
+        System.out.println("b:"+stamp1);
+
+    },"b").start();
+
+    TimeUnit.SECONDS.sleep(10);
+}
+```
+
+![image-20210207152713136](JUC.assets/image-20210207152713136.png)
+
+# 锁
+
+## 公平锁和非公平锁
+
+公平锁：不能插队
+
+非公平锁：可以插队，默认非公平锁，效率高
+
+```java
+// 非公平锁
+Lock lock=new ReentrantLock();
+// 公平锁
+Lock lock1=new ReentrantLock(true);
+```
+
+## 可重入锁
+
+所有锁都是可重入锁，也称为递归锁
+
+拿到了外面的锁之后，就可以拿到里面的锁（自动获得），单点登录
+
+## 自选锁
+
+![image-20210207155318831](JUC.assets/image-20210207155318831.png)
+
+```java
+// 自旋锁
+public class SpinLock {
+
+    AtomicReference<Thread> atomicReference = new AtomicReference<>();
+
+    // 加锁
+    public void myLock() {
+        Thread thread = Thread.currentThread();
+        int count = 0;
+        // 自旋锁
+        // CAS成功即退出自旋
+        while (!atomicReference.compareAndSet(null, thread)) {
+            if (count == 0) {
+                System.out.println(thread.getName() + ":进入自旋");
+                count++;
+            }
+        }
+    }
+
+    // 解锁
+    public void myUnLock() {
+        Thread thread = Thread.currentThread();
+        System.out.println(thread.getName() + "unlock");
+        atomicReference.compareAndSet(thread, null);
+    }
+
+    @Test
+    public void test01() throws InterruptedException {
+        SpinLock spinLock = new SpinLock();
+
+        new Thread(() -> {
+            spinLock.myLock();
+            try {
+                System.out.println(Thread.currentThread().getName() + ":开始运行");
+                TimeUnit.SECONDS.sleep(3);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                System.out.println(Thread.currentThread().getName() + ":结束运行");
+                spinLock.myUnLock();
+            }
+
+        }, "a").start();
+
+        TimeUnit.SECONDS.sleep(1);
+        new Thread(() -> {
+            spinLock.myLock();
+            try {
+                System.out.println(Thread.currentThread().getName() + ":开始运行");
+            } finally {
+                System.out.println(Thread.currentThread().getName() + ":结束运行");
+                spinLock.myUnLock();
+            }
+        }, "b").start();
+
+        TimeUnit.SECONDS.sleep(5);
+    }
+}
+```
+
+## 死锁
+
+两个线程试图获取对方的锁
+
+```java
+public class DeadLock {
+    public static void main(String[] args) {
+        String a = "hello";
+        String b = "world";
+
+        new Thread(new MyThread(a, b)).start();
+        new Thread(new MyThread(b, a)).start();
+    }
+}
+
+class MyThread implements Runnable {
+
+    private String a;
+    private String b;
+
+    public MyThread(String a, String b) {
+        this.a = a;
+        this.b = b;
+    }
+
+    @Override
+    public void run() {
+        synchronized (a) {
+            System.out.println(a + b);
+            synchronized (b) {
+                System.out.println(b + a);
+            }
+        }
+    }
+}
+```
+
+`jps -l`定位进程号
+
+![image-20210207171532143](JUC.assets/image-20210207171532143.png)
+
+`jstack 进程号` 查看进程信息
+
+![image-20210207171652704](JUC.assets/image-20210207171652704.png)
 
