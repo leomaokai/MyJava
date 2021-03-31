@@ -54,7 +54,7 @@ person.name
 ```js
 <script>
     //严格检查模式,预防js随意性导致产生的问题,写在第一行
-    'user strict';
+    'use strict';
 </script>
 ```
 

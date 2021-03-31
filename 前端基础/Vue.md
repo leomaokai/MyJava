@@ -460,6 +460,8 @@ vue list
 vue init webpack myvue
 #myvue为目录名
 #一路选择no
+# vue3
+vue create myvue
 ```
 
 ```

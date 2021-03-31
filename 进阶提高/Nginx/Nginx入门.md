@@ -91,7 +91,7 @@ server_name	localhost;	#主机名
 
 准备工作
 
-* 载`linux`安装tomcat,使用默认端口8080
+* `linux`安装tomcat,使用默认端口8080
 * 进入tomcat的bin目录中,`./startup.sh`启动tomcat服务器
 * 查看开放的端口号`firewall-cmd --list-all`
 * 对方开放访问的端口`firewall-cmd --add-port=8080/tcp --permanent`

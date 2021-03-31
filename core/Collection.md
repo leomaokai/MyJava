@@ -19,7 +19,7 @@ List、Set、Queue 同一级别
 Set 无序,唯一
 
 - HashSet
-  底层数据结构是哈希表。(无序,唯一)
+  底层数据结构是哈希表。(无序(元素顺序与添加顺序可能不同),唯一)
   如何来保证元素唯一性?
   1.依赖两个方法：hashCode()和equals()
   
@@ -29,7 +29,7 @@ Set 无序,唯一
   2.由哈希表保证元素唯一
   
 - TreeSet
-  底层数据结构是红黑树。(唯一，有序)
+  底层数据结构是红黑树。(唯一，有序(排序状态))
   
   \1. 如何保证元素排序的呢?
   自然排序
@@ -152,3 +152,55 @@ TreeSet内部实现的是**红黑树**，默认整形排序为从小到大。
 - `SortedSet headSet(Object toElement)`：返回此Set的子集，由小于toElement的元素组成；
 - `SortedSet tailSet(Object fromElement)`：返回此Set的子集，由大于fromElement的元素组成;
 
+# 迭代器
+
+```java
+public class IteratorDemo {
+    public static void main(String[] args) {
+        Collection<String> coll = new ArrayList<String>();	//多态
+        coll.add("abc1");
+        coll.add("abc2");
+        coll.add("abc3");
+        coll.add("abc4");
+        // 迭代器,对集合ArrayList中的元素进行取出
+        // 调用集合的方法iterator()获取Iterator接口的实现类的对象
+        Iterator<String> it = coll.iterator();
+        // 接口实现类对象,调用方法hasNext()判断集合中是否有元素
+        // boolean b = it.hasNext();
+        // System.out.println(b);
+        // 接口的实现类对象,调用方法next()取出集合中的元素
+        // String s = it.next();
+        // System.out.println(s);
+
+        // 迭代是反复内容,使用循环实现,循环的终止条件：集合中没元素, hasNext()返回了false
+        while (it.hasNext()) {
+            String s = it.next();
+            System.out.println(s);
+        }
+    }
+}
+```
+
+ArrayList 数组的删除操作应该注意的一些问题
+
+```java
+public static void remove(ArrayList<String> list) {
+    Iterator<String> it = list.iterator();
+
+    while (it.hasNext()) {
+        String str = it.next();
+
+        if (str.equals("b")) {
+            it.remove();
+        }
+    }
+}
+```
+
+使用迭代器遍历时，ArrayList 内部创建了一个内部迭代器 iterator，在使用 next() 方法来取下一个元素时，会使用 ArrayList 里保存的一个用来记录 List 修改次数的变量 modCount ，与 iterator 保存了一个 expectedModCount 来表示期望的修改次数进行比较，如果不相等则会抛出异常；
+
+而在 foreach 循环中调用 list 中的 remove() 方法，会走到 fastRemove() 方法，该方法不是 iterator 中的方法，而是 ArrayList 中的方法，在该方法只做了modCount++，而没有同步到 expectedModCount。
+
+当再次遍历时，会先调用内部类 iteator 中的 hasNext() ,再调用 next() ,在调用 next() 方法时，会对 modCount 和 expectedModCount 进行比较，此时两者不一致，就抛出了 ConcurrentModificationException 异常。
+
+所以关键是用 ArrayList 的 remove 还是 iterator 中的 remove 。

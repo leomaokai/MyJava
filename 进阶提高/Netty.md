@@ -76,6 +76,26 @@ Netty 线程模型基于**主从 Reactor** 多线程模型
 
 MainReactor可以关联多个SubReactor
 
-## Netty 线程模型
+# Netty模型
 
 ![image-20210210231218533](Netty.assets/image-20210210231218533.png)
+
+* Netty 抽象出两组线程池 BossGroup 专门负责接收客户端连接，WorkerGroup 专门负责网络的读写
+* BossGroup 和 WorkerGroup 类型都是 NioEventLoopGroup
+* NioEventLoopGroup 相当于一个事件循环组，这个组中含有多个事件循环，每个事件循环都是 NioEventLoop
+* NioEventLoop 表示一个不断循环的执行处理任务的线程，每个 NioEventLoop 都有一个 selector，用于监听绑定在其上的socket的网络通讯
+* NioEventLoopGroup 可以有多个线程，即可以含有多个 NioEventLoop 
+* 每个 Boss下的 NioEventLoop 执行步骤：
+  * 轮询 Accept 事件
+  * 处理 Accept 事件，与 client 建立连接，生成 NioSocketChannel，并将其注册到某个 Worker NioEventLoop 上的 selector
+  * 处理任务队列的任务，即 runAllTasks
+* 每个 Worker NioEventLoop 循环执行的步骤：
+  * 轮询 read，write 事件
+  * 处理 IO 事件，在对应的 NioSocketChannel 上处理
+  * 处理任务队列的任务，即 runAllTasks
+* 每个 Work NioEventLoop 在处理业务时，会使用pipeline（管道），pipeline中包含了 channel，即通过 pipeline 可以获取对应通道，管道中维护了很多的处理器
+
+# Netty入门
+
+
+
