@@ -11,7 +11,7 @@ https://www.bilibili.com/video/BV1Af4y1972o
 In short, the microservice architectural style is an approach to developing a single application as `a suite of small services`, each `running in its own process` and communicating with lightweight mechanisms, often an HTTP resource API. These services are `built around business capabilities` and `independently deployable` by fully automated deployment machinery. `There is a bare minimum of centralized management of these services`, which may be written in different programming languages and use different data storage technologies.                        -----[摘自官网]
 
 ```markdown
-- a suite of small services                      								--一系列微小服务
+- a suite of small services                      			   --一系列微小服务
 - running in its own process                                    --运行在自己的进程里
 - built around business capabilities                            --围绕自己的业务开发
 - independently deployable                                      --独立部署
@@ -161,11 +161,11 @@ In short, the microservice architectural style is an approach to developing a si
 
 ```markdown
 # 1.核心组件说明
-- eurekaserver、consul、nacos    服务注册中心组件
-- rabbion & openfeign  			    服务负载均衡 和 服务调用组件
-- hystrix & hystrix dashboard   服务断路器  和  服务监控组件
-- zuul、gateway 								 服务网关组件
-- config 											  统一配置中心组件
+- eurekaserver、consul、nacos		服务注册中心组件
+- rabbion & openfeign			服务负载均衡 和 服务调用组件
+- hystrix & hystrix dashboard   	服务断路器  和  服务监控组件
+- zuul、gateway 					服务网关组件
+- config 						统一配置中心组件
 - bus                           消息总线组件
 ......
 ```

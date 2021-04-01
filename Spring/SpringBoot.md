@@ -124,10 +124,9 @@ public class Springboot01HelloworldApplication {
     	@AutoConfigurationPackage	自动配置包
     		@Import(AutoConfigurationPackages.Registrar.class) 自动注册包
     	@Import(AutoConfigurationImportSelector.class)	自动配置导入选择
-    		
     ```
-
-  * ```java
+    
+* ```java
     List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
     
     protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
@@ -153,14 +152,30 @@ public class Springboot01HelloworldApplication {
     
     loadSpringFactories-->Enumeration urls = classLoader.getResources("META-INF/spring.factories");
     ```
-
-  ![image-20210119140416837](SpringBoot.assets/image-20210119140416837.png)
+  
+![image-20210119140416837](SpringBoot.assets/image-20210119140416837.png)
 
 SpringBoot所有自动配置都是在启动时扫描并加载,但不一定生效,只有导入了对应的start,自动装配才能生效
 
 * springboot在启动时从类路径`META-INF/spring.factories`获取指定的值
 * 将这些自动配置的类导入容器,自动配置就会生效,帮我们进行自动配置
-* 以取我们需要手动配置的东西,现在springboot帮我们做了
+* 我们需要手动配置的东西,现在springboot帮我们做了
+
+```markdown
+# 自动配置原理
+- SpringBoot 的自动配置都在 spring-boot-autoconfiguration jar包里
+- 开启自动配置,使用注解 @EnableAutoConfiguration(@SpringBootApplication包含了自动配置注解)
+- @EnableAutoConfiguration 会 Import 了一个 AutoConfigurationImportSelector 类
+- 该类会加载 META-INF/spring.factories 文件的一个特定属性
+- 一个特定的属性:org.springframework.boot.autoconfigure.EnableAutoConfiguration
+# 条件注解
+- @Conditional
+- @ConditionalOnClass
+- @ConditionalOnBean
+- ...
+```
+
+
 
 ## SpringApplication类
 

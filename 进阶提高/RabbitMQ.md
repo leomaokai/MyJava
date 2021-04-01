@@ -3,10 +3,11 @@ service rabbitmq-server start    # 启动
 service rabbitmq-server stop     # 停止
 service rabbitmq-server restart  # 重启 
 systemctl status rabbitmq-server #Active: active (running) 说明处于运行状态
+rabbitmqctl help # 查看 rabbitmq 命令
 ```
 
 ```bash
-rabbitmq-plugins enable rabbitmq_management   # 启用插件
+rabbitmq-plugins enable|list|disable [rabbitmq_management]   # 启用|查看|停止插件
 service rabbitmq-server restart    # 重启
 #  http://localhost:15672 默认账户guest/guest
 rabbitmqctl add_user admin yourpassword   # 增加普通用户
