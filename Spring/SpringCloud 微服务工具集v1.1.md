@@ -283,8 +283,7 @@ springcloud支持的多种注册中心Eureka(netflix)、Consul、Zookeeper、以
 ```markdown
 # 0.简介
 - https://github.com/Netflix/eureka/wiki
-- Eureka是Netflix开发的服务发现框架，本身是一个基于REST的服务。SpringCloud将它集成在其子项目spring-cloud-netflix中，		以实现SpringCloud的服务注册和发现功能。
-	Eureka包含两个组件：Eureka Server和Eureka Client。
+- Eureka是Netflix开发的服务发现框架，本身是一个基于REST的服务。SpringCloud将它集成在其子项目spring-cloud-netflix中，以实现SpringCloud的服务注册和发现功能。Eureka包含两个组件：Eureka Server和Eureka Client。
 ```
 
 单体应用  ------>  分类服务   商品服务  订单服务 用户服务......
@@ -314,8 +313,8 @@ Eureka Client 组件 :   分类服务  商品服务  订单服务(微服务)
 ```
 
 ```properties
-server.port=8761																			#执行服务端口
-spring.application.name=eurekaserver 									#指定服务名称 唯一标识
+server.port=8761	#执行服务端口
+spring.application.name=eurekaserver	#指定服务名称 唯一标识
 eureka.client.service-url.defaultZone=http://localhost:8761/eureka  #指定服务注册中心的地址
 ```
 
@@ -598,8 +597,8 @@ spring.cloud.consul.discovery.service-name=${spring.application.name} #指定注
 ```properties
 server.port=8889
 spring.application.name=consulclient8889
-spring.cloud.consul.host=localhost														#注册consul服务的主机
-spring.cloud.consul.port=8500																	#注册consul服务的端口号
+spring.cloud.consul.host=localhost	#注册consul服务的主机
+spring.cloud.consul.port=8500	#注册consul服务的端口号
 spring.cloud.consul.discovery.register-health-check=false	    #关闭consu了服务的健康检查[不推荐]
 spring.cloud.consul.discovery.service-name=${spring.application.name} #指定注册的服务名称 默认就是应用名
 ```
@@ -826,16 +825,15 @@ String forObject = restTemplate.getForObject("http://服务ID/hello/hello?name="
 - RoundRobinRule         		轮训策略	按顺序循环选择 Server 
 - RandomRule             		随机策略	随机选择 Server  
 - AvailabilityFilteringRule 可用过滤策略
- 	`会先过滤由于多次访问故障而处于断路器跳闸状态的服务，还有并发的连接数量超过阈值的服务，然后对剩余的服务列表按照轮询策略进行		访问
+ 	`会先过滤由于多次访问故障而处于断路器跳闸状态的服务，还有并发的连接数量超过阈值的服务，然后对剩余的服务列表按照轮询策略进行访问
 
 - WeightedResponseTimeRule  响应时间加权策略   
-	`根据平均响应的时间计算所有服务的权重，响应时间越快服务权重越大被选中的概率越高，刚启动时如果统计信息不足，则使用		
-		RoundRobinRule策略，等统计信息足够会切换到
+	`根据平均响应的时间计算所有服务的权重，响应时间越快服务权重越大被选中的概率越高，刚启动时如果统计信息不足，则使用RoundRobinRule策略，等统计信息足够会切换到
 
-- RetryRule                 重试策略          
+- RetryRule	重试策略          
 	`先按照RoundRobinRule的策略获取服务，如果获取失败则在制定时间内进行重试，获取可用的服务。
 	
-- BestAviableRule           最低并发策略     
+- BestAviableRule	最低并发策略     
 	`会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务，然后选择一个并发量最小的服务
 ```
 
@@ -980,15 +978,15 @@ public String findAllFeignClient(){
 
 ```java
 // 1.商品服务中添加如下方法
- @GetMapping("/product/findOne")
+@GetMapping("/product/findOne")
 public Map<String,Object> findOne(String productId){
-  log.info("商品服务查询商品信息调用成功,当前服务端口:[{}]",port);
-  log.info("当前接收商品信息的id:[{}]",productId);
-  Map<String, Object> map = new HashMap<String,Object>();
-  map.put("msg","商品服务查询商品信息调用成功,当前服务端口: "+port);
-  map.put("status",true);
-  map.put("productId",productId);
-  return map;
+    log.info("商品服务查询商品信息调用成功,当前服务端口:[{}]",port);
+    log.info("当前接收商品信息的id:[{}]",productId);
+    Map<String, Object> map = new HashMap<String,Object>();
+    map.put("msg","商品服务查询商品信息调用成功,当前服务端口: "+port);
+    map.put("status",true);
+    map.put("productId",productId);
+    return map;
 }
 ```
 
