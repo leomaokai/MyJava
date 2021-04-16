@@ -822,8 +822,8 @@ String forObject = restTemplate.getForObject("http://服务ID/hello/hello?name="
 
 ```markdown
 # 1.ribbon负载均衡算法
-- RoundRobinRule         		轮训策略	按顺序循环选择 Server 
-- RandomRule             		随机策略	随机选择 Server  
+- RoundRobinRule     轮训策略	按顺序循环选择 Server 
+- RandomRule     随机策略	随机选择 Server  
 - AvailabilityFilteringRule 可用过滤策略
  	`会先过滤由于多次访问故障而处于断路器跳闸状态的服务，还有并发的连接数量超过阈值的服务，然后对剩余的服务列表按照轮询策略进行访问
 

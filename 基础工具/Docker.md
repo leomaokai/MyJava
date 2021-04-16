@@ -184,16 +184,6 @@ Using default tag: latest	#默认最新版
 latest: Pulling from library/mysql
 a076a628af6f: Pull complete 	#分层下载，docker image核心
 f6c208f3f991: Pull complete 
-88a9455a9165: Pull complete 
-406c9b8427c6: Pull complete 
-7c88599c0b25: Pull complete 
-25b5c6debdaf: Pull complete 
-43a5816f1617: Pull complete 
-1a8c919e89bf: Pull complete 
-9f3cf4bd1a07: Pull complete 
-80539cea118d: Pull complete 
-201b3cad54ce: Pull complete 
-944ba37e1c06: Pull complete 
 Digest: sha256:feada149cb8ff54eade1336da7c1d080c4a1c7ed82b5e320efb5beebed85ae8c	#签名
 Status: Downloaded newer image for mysql:latest
 docker.io/library/mysql:latest	#真实地址
@@ -226,8 +216,8 @@ docker run [可选参数] imageid
 --name="Name"	#容器名字
 -d		#后台方式运行
 -it		#使用交互方式运行,进入容器查看内容
--P		#指定容器端  -P  主机端口:容器端口
--p		#小p随机指定端口
+-p		#指定容器端  -p  主机端口:容器端口
+-P		#大p随机指定端口
 
 # 启动并进入容器
 [root@iZ8vb7zutfxx5a3uhxmnksZ /]# docker run -it centos /bin/bash
@@ -322,6 +312,17 @@ docker attach 容器id	#正在执行当前的代码
 
 ```bash
 docker cp 容器id:容器内路径 目的的主机路径
+```
+
+打包与加载
+
+```bash
+# 将容器打包成一个新的镜像
+docker commit -m "描述" -a "作者信息" (容器Id或者名称) 打包名称:标签
+# 将镜像备到文件
+docker save 镜像名:标签 -o imageName-tag.tar
+# 加载镜像
+docker load -i imageName-tag.tar
 ```
 
 # 练习
@@ -450,6 +451,8 @@ Docker镜像都是只读的，当容器启动时，一个新的可写层被加�
 
 这一层就是我们通常说容器层，容器层之下都是镜像层
 
+提高复用率
+
 ## 提交镜像
 
 ```bash
@@ -484,6 +487,30 @@ docker run -it -v /home/test:/home centos /bin/bash
 `docker inspect id` 查看容器挂载信息
 
 ![image-20210125170303608](Docker.assets/image-20210125170303608.png)
+
+## 数据卷
+
+```markdown
+# 数据卷作用
+- 用来实现容器和宿主机之间的数据共享
+# 数据卷特点
+- 数据卷可以在容器之间共享和重用
+- 对数据卷的修改会立即影响到对应容器
+- 对数据卷的更新或修改不会影响镜像
+- 数据卷会默认一直存在,即使容器被删除
+```
+
+```bash
+# 配置数据卷,主机影响容器,容器不影响主机 :ro
+docker run -d -p 8081:8080 --name tomcat01 -v /root/apps:/usr/local/tomcat/webapps:ro tomcat:8.0
+```
+
+```bash
+# 查看数据卷
+docker volume ls
+# 查看数据卷的细节
+docker volume inspect 卷名
+```
 
 ## MySQL同步数据
 
@@ -645,18 +672,21 @@ docker run -d -p 3310:3306 -e MYSQL_ROOT_PASSWORD=123456 --name mysql02  --volum
 
 但是数据一旦持久化到本地,本地的数据是不会删除的
 
-# DockerFile
+# Dockerfile
 
 DockerFile是用来构建docker镜像的文件,命令参数脚本
+
+日后用户可以将自己的应用打包成镜像,这样可以让我们应用进行容器运行
 
 构建步骤:
 
 * 编写一个 dockerfile 文件
-* docker bulid 构建成为一个镜像
+* dockerfile 文件所在的文件夹会成为上下文
+* docker bulid 构建成为一个镜像(包括上下文的全部文件)
 * docker run 运行
 * docker push 发布镜像(DockerHub,阿里云镜像仓库)
 
-## DockerFile构建过程
+## Dockerfile构建过程
 
 基础知识:
 
@@ -664,25 +694,35 @@ DockerFile是用来构建docker镜像的文件,命令参数脚本
 * 执行从上到下顺序执行
 *  `#` 表示注释
 * 每个指令都会创建提交一个新的镜像层,并提交
+* 最后会生成一个最终构建镜像
+* 指令生成的其它镜像在缓冲区 docker cache,可以复用
 
 dockerfile是面向开发的
 
 ## Dockerfile的指令
 
 ```dockerfile
-FROM  		# 基础镜像,一切从这里开始构建,centos
-MAINTAINER	# 镜像是谁写
-RUN		# 镜像构建时需要运行的命令
-ADD		# 步骤,tomcat镜像,tomcat压缩包,添加内容
+FROM # 基础镜像,一切从这里开始构建,centos
+MAINTAINER(弃用)	# 镜像是谁写
+RUN	# 镜像构建时需要运行的命令
+ADD	# 将宿主机目录下的文件拷贝进镜像且会自动处理URL和解压tar包
+COPY # 类似 ADD 命令,将我们的文件拷贝到镜像中
 WORKDIR	# 镜像的工作目录
-VOLUME	# 挂载的目录
+VOLUME	# 容器数据卷,挂载的目录,用于数据保存和持久化
 EXPOSE	# 暴露端口配置
-CMD		# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
+ENV	# 构建时设置环境变量
+CMD	# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
 ENTRYPOINT	# 指定这个容器启动时要运行的命令,可以追加命令
-ONBUILD		# 当构建一个被继承 DockerFile 时会运行 ONBUILD 指令
-COPY	# 类似ADD命令,将我们的文件拷贝到镜像中
-ENV		# 构建时设置环境变量
+ONBUILD	# 当构建一个被继承 DockerFile 时会运行 ONBUILD 指令
 ```
+
+```dockerfile
+FROM <image>
+FROM <image>[:<tag>] # 
+FROM <image>[@<digest>]
+```
+
+
 
 ## 实战测试
 
@@ -709,7 +749,7 @@ CMD /bin/bash
 ```
 
 ```dockerfile
-# 构建镜像 docker build
+# 构建镜像 docker build [--no-cache]
 # docker build -f dockerfile文件路径 -t 镜像名:[版本号] .
 docker build -f mydockerfile-centos -t mycentos:0.1 .
 ```
@@ -727,7 +767,7 @@ docker history 镜像id # 查看镜像生成过程
 > CMD 和 ENTRYPOINT 的区别
 
 ```dockerfile
-CMD		# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
+CMD	# 指定这个容器启动时要运行的命令,只有最后一个会生效,可被替代
 ENTRYPOINT	# 指定这个容器启动时要运行的命令,可以追加命令
 ```
 
@@ -864,5 +904,234 @@ The push refers to repository [registry.cn-hangzhou.aliyuncs.com/04181425/kai]
 
 ![image-20210131175713520](Docker.assets/image-20210131175713520.png)
 
+## 构建SpringBoot应用
+
+```markdown
+- 开发 SpringBoot 应用程序
+- 对 SpringBoot 应用程序进行打包
+	- - war ===> tomcat
+	- - jar ===> jdk
+- 打包项目
+- 在服务器中创建 Dockerfile 上下文目录
+- 创建 Dockerfile 文件
+- 上传应用 jar 包到 context 目录
+```
+
+![image-20210415231718819](Docker.assets/image-20210415231718819.png)
+
+```dockerfile
+# 编写 DockerFile
+# 基于 jdk8
+FROM openjdk:8-jre
+# 定义进入容器时的默认位置,接下来后续操作的工作位置
+WORKDIR /app
+# 将上下文中的 jar 包复制到工作目录,同时修改名称为 app.jar
+ADD docker_demo-0.0.1-SNAPSHOT.jar app.jar
+# 让当前的容器暴露项目的端口
+EXPOSE 8080
+# 启动应用的固定命令
+ENTRYPOINT ["java","-jar"]
+# 执行 jar 的名称
+CMD ["app.jar"]
+```
+
+```bash
+# 执行构建
+docker build -t demo:01 .
+```
+
+![image-20210415233656819](Docker.assets/image-20210415233656819.png)
+
+```bash
+# 查看
+docker images
+# 运行镜像
+docker run -d -p 8081:8080 --name demo demo:01
+```
+
+## IDEA与Docker
+
+安装 Docker 插件
+
+![image-20210416002149413](Docker.assets/image-20210416002149413.png)
+
+![image-20210416002723969](Docker.assets/image-20210416002723969.png)
+
+
+
 # Docker网络
+
+## 通信机制和网桥
+
+```markdown
+# 为什么提供网络功能
+- docker 允许通过外部访问容器或容器互联的方式来提供网络服务
+# docker容器与操作系统之间的通信机制
+- docker启动时,会自动在主机上创建一个 docker0 虚拟网桥,实际上是 Linux 的一个 bridge ,可以理解为软件交换机,他会在挂载他的网口之间进行转发
+- 同时 docker 会随机分配一个本地未占用的私有网段中的一个地址给 docker0 接口,比如典型的 172.17.42.1 ,掩码为 255.255.0.0 ,此后启动的容器内的网口也会自动分配一个同一网段 (172.17.0.0/16) 的地址
+- 当创建一个 docker 容器时,同时会创建一对 veth pair 接口(当数据包发送到一个接口时,另外一个接口也可以收到同样的数据包).这时接口一端在容器内,即 eth0 ;另一端在本地并被挂载到 docker0 网桥,名称以 veth 开头(例如 vethAQI2QT).通过这种方式,主机可以跟容器通信,容器之间也可以通信, docker 就创建了在主机和所有容器之间一个虚拟共享网络
+# docker 网络使用
+- 一般在使用 docker 网桥(bridge)实现容器与容器通信时,都是站在一个应用角度进行容器通信(一个应用使用一个网桥,若使用默认网桥,会影响其它容器的带宽)
+```
+
+```bash
+# 查看 docker 网桥配置
+docker network ls
+# 自定义网桥
+docker network create 网桥名
+docker network create -d bridge 网桥名
+# 启动容器时指定网桥
+docker run -d -p 8081:8080 --network 网桥名 --name myTomcat01 tomcat:8.0
+# 一旦在启动容器时指定了网桥之后,日后可以在任何这个网桥关联的容器中使用容器名进行与其他容器通信
+# 删除网桥
+docker network rm 网桥名
+# 查看网桥细节
+docker network inspect 网桥名
+```
+
+# 常用服务安装
+
+## MySQL
+
+```bash
+docker run -d -p 3307:3306 --name mysql80 -v /home/tools/mysql8.0/conf:/etc/mysql -v /home/tools/mysql8.0/data:/var/lib/mysql -v /home/tools/mysql8.0/mysql-files:/var/lib/mysql-files/ -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0
+```
+
+## Tomcat
+
+```bash
+# pull tomcat 注意jdk版本
+docker pull tomcat:jdk11-openjdk
+# 启动
+docker run -d -p 8081:8080 --name myTomcat -v /home/tools/tomcat/apps:/usr/local/tomcat/webapps -v /home/tools/tomcat/conf:/usr/local/tomcat/conf tomcat:jdk11
+```
+
+## Redis
+
+```bash
+docker pull redis:6.0
+# 启动
+docker run -d -p 6380:6379 --name redis6.0 redis:6.0
+# 开启持久化
+docker run -d -p 6380:6379 --name redis6.0 -v /home/tools/redis6.0/data:/data -v /home/tools/redis6.0/conf:/usr/local/etc/redis redis:6.0 redis-server --appendonly yes
+# 配置文件
+# 需要手动下载一个redis.conf复制到宿主机,再进行挂载
+docker run -d -p 6380:6379 --name redis6.0 -v /home/tools/redis6.0/data:/data -v /home/tools/redis6.0/conf:/usr/local/etc/redis redis:6.0 redis-server /usr/local/etc/redis/redis.conf
+# 配置文件和持久化不能一起配置????
+```
+
+# Compose
+
+`Compose` 项目是`Docker`官方的开源项目,负责实现对`Docker`容器集群的快速编排
+
+它允许用户通过一个单独的`docker-compose.yml`模板文件来定义一组相关联的应用容器为一个项目服务
+
+`Compose`中两个重要的概念:
+
+- 服务`service`:一个应用的容器,实际上可以包括若干运行相同镜像的容器实例
+- 项目`project`:由一组关联的应用容器组成的一个完整业务单元,在`docker-compose.yml`文件中定义
+
+## 安装
+
+```bash
+sudo curl -L https://github.com/docker/compose/releases/download/1.16.1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+docker-compose --version
+docker-compose version 1.16.1, build 1719ceb
+```
+
+## 使用
+
+```yml
+# 建立 docker-compose.yml 文件
+version: "3.0"
+# 多个服务
+services:
+ # 服务名唯一
+ tomcat01:
+  # 服务镜像
+  image: tomcat:jdk11
+  # 宿主机端口与容器端口映射
+  ports:
+   - "8081:8080"
+  networks:
+   - hello
+ 
+ tomcat02:
+  image: tomcat:jdk11
+  prots:
+   - "8082:8080"
+  # 配置网络
+  networks:
+   # hello 网桥
+   - hello
+  # 指定容器名
+  container_name: tomcat02
+
+# 声明服务使用的网桥名,默认bridge
+networks:
+ hello:
+```
+
+```bash
+# 启动 compose 中的所有服务
+docker-compose up
+```
+
+```yml
+# 使用数据卷
+vsersion: "3.0"
+
+services:
+ my_slq:
+  image: mysql:8.0
+  volumes:
+  # 自动映射,卷名必须声明
+   - mysql_data:/var/lib/mysql
+  # 自定义映射
+  # - /home/wmk/mysql:/var/lib/mysql
+  # 使用环境变量
+  environment:
+   - MYSQL_ROOT_PASSWORD=123456
+  
+ redis:
+  image: redis:6.0
+  container_name: redis
+  ports:
+   - "6379:6379"
+  volumes:
+   - redisdata:/data
+  # 覆盖命令,开启持久化
+  command: "redis-server --appendonly yes"
+  # 解决容器依赖,启动先后的问题
+  depends_on: 
+   # 服务名,先启动 my_sql,在启动 redis
+   - my_sql
+
+# 声明卷名
+volumes:
+ mysql_data:
+ redistata:
+```
+
+```yml
+# build 指令,用来将指定的 Dockerfile 打包成对应镜像,然后运行该镜像
+services:
+ demo:
+  build: # 用来指定 Dockerfile 所在的目录
+   context: demo # 指定上下文目录
+   dockerfile: Dockerfile
+  container_name: demo
+  ports:
+   - "8081:8081"
+  ...
+```
+
+## 指令
+
+```bash
+
+```
 

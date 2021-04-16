@@ -14,21 +14,21 @@
 
 ```markdown
 # 1.ActiveMQ
-		ActiveMQ 是Apache出品，最流行的，能力强劲的开源消息总线。它是一个完全支持JMS规范的的消息中间件。丰富的API,多种集群架构模式让ActiveMQ在业界成为老牌的消息中间件,在中小型企业颇受欢迎!
+ActiveMQ 是Apache出品，最流行的，能力强劲的开源消息总线。它是一个完全支持JMS规范的的消息中间件。丰富的API,多种集群架构模式让ActiveMQ在业界成为老牌的消息中间件,在中小型企业颇受欢迎!
 
 # 2.Kafka
-		Kafka是LinkedIn开源的分布式发布-订阅消息系统，目前归属于Apache顶级项目。Kafka主要特点是基于Pull的模式来处理消息消费，
-		追求高吞吐量，一开始的目的就是用于日志收集和传输。0.8版本开始支持复制，不支持事务，对消息的重复、丢失、错误没有严格要求，
-		适合产生大量数据的互联网服务的数据收集业务。
+Kafka是LinkedIn开源的分布式发布-订阅消息系统，目前归属于Apache顶级项目。Kafka主要特点是基于Pull的模式来处理消息消费，
+追求高吞吐量，一开始的目的就是用于日志收集和传输。0.8版本开始支持复制，不支持事务，对消息的重复、丢失、错误没有严格要求，
+适合产生大量数据的互联网服务的数据收集业务。
 
 # 3.RocketMQ
-		RocketMQ是阿里开源的消息中间件，它是纯Java开发，具有高吞吐量、高可用性、适合大规模分布式系统应用的特点。RocketMQ思路起
-		源于Kafka，但并不是Kafka的一个Copy，它对消息的可靠传输及事务性做了优化，目前在阿里集团被广泛应用于交易、充值、流计算、消
-		息推送、日志流式处理、binglog分发等场景。
+RocketMQ是阿里开源的消息中间件，它是纯Java开发，具有高吞吐量、高可用性、适合大规模分布式系统应用的特点。RocketMQ思路起
+源于Kafka，但并不是Kafka的一个Copy，它对消息的可靠传输及事务性做了优化，目前在阿里集团被广泛应用于交易、充值、流计算、消
+息推送、日志流式处理、binglog分发等场景。
 
 # 4.RabbitMQ
-		RabbitMQ是使用Erlang语言开发的开源消息队列系统，基于AMQP协议来实现。AMQP的主要特征是面向消息、队列、路由（包括点对点和
-		发布/订阅）、可靠性、安全。AMQP协议更多用在企业系统内对数据一致性、稳定性和可靠性要求很高的场景，对性能和吞吐量的要求还在其次.
+RabbitMQ是使用Erlang语言开发的开源消息队列系统，基于AMQP协议来实现。AMQP的主要特征是面向消息、队列、路由（包括点对点和
+发布/订阅）、可靠性、安全。AMQP协议更多用在企业系统内对数据一致性、稳定性和可靠性要求很高的场景，对性能和吞吐量的要求还在其次.
 ```
 
 > RabbitMQ比Kafka可靠，Kafka更适合IO高吞吐的处理，一般应用在大数据日志处理或对实时性（少量延迟），可靠性（少量丢数据）要求稍低的场景使用，比如ELK日志收集。
@@ -48,8 +48,8 @@
 `官方教程`: https://www.rabbitmq.com/#getstarted
 
 ```markdown
- # AMQP 协议
- 		AMQP（advanced message queuing protocol）`在2003年时被提出，最早用于解决金融领不同平台之间的消息传递交互问题。顾名思义，AMQP是一种协议，更准确的说是一种binary wire-level protocol（链接协议）。这是其和JMS的本质差别，AMQP不从API层进行限定，而是直接定义网络交换的数据格式。这使得实现了AMQP的provider天然性就是跨平台的。以下是AMQP协议模型:
+# AMQP 协议
+AMQP（advanced message queuing protocol）`在2003年时被提出，最早用于解决金融领不同平台之间的消息传递交互问题。顾名思义，AMQP是一种协议，更准确的说是一种binary wire-level protocol（链接协议）。这是其和JMS的本质差别，AMQP不从API层进行限定，而是直接定义网络交换的数据格式。这使得实现了AMQP的provider天然性就是跨平台的。以下是AMQP协议模型:
 ```
 
 ![image-20200311182438041](RibbitMQ 实战教程.assets/image-20200311182438041.png)
@@ -70,24 +70,24 @@
 
 ```markdown
 # 1.将rabbitmq安装包上传到linux系统中
-	erlang-22.0.7-1.el7.x86_64.rpm
-	rabbitmq-server-3.7.18-1.el7.noarch.rpm
+erlang-22.0.7-1.el7.x86_64.rpm
+rabbitmq-server-3.7.18-1.el7.noarch.rpm
 
 # 2.安装Erlang依赖包
-	rpm -ivh erlang-22.0.7-1.el7.x86_64.rpm
+rpm -ivh erlang-22.0.7-1.el7.x86_64.rpm
 
 # 3.安装RabbitMQ安装包(需要联网)
-	yum install -y rabbitmq-server-3.7.18-1.el7.noarch.rpm
-		注意:默认安装完成后配置文件模板在:/usr/share/doc/rabbitmq-server-3.7.18/rabbitmq.config.example目录中,需要	
-				将配置文件复制到/etc/rabbitmq/目录中,并修改名称为rabbitmq.config
+yum install -y rabbitmq-server-3.7.18-1.el7.noarch.rpm
+注意:默认安装完成后配置文件模板在:/usr/share/doc/rabbitmq-server-3.7.18/rabbitmq.config.example目录中,需要	
+将配置文件复制到/etc/rabbitmq/目录中,并修改名称为rabbitmq.config
 # 4.复制配置文件
-	cp /usr/share/doc/rabbitmq-server-3.7.18/rabbitmq.config.example /etc/rabbitmq/rabbitmq.config
+cp /usr/share/doc/rabbitmq-server-3.7.18/rabbitmq.config.example /etc/rabbitmq/rabbitmq.config
 
 # 5.查看配置文件位置
-	ls /etc/rabbitmq/rabbitmq.config
+ls /etc/rabbitmq/rabbitmq.config
 
 # 6.修改配置文件(参见下图:)
-	vim /etc/rabbitmq/rabbitmq.config 
+vim /etc/rabbitmq/rabbitmq.config 
 ```
 
 ![image-20190925222230260](RibbitMQ 实战教程.assets/image-20190925222230260-3836271.png)
@@ -169,13 +169,13 @@
 
 ```markdown
 # 1.服务启动相关
-	systemctl start|restart|stop|status rabbitmq-server
+systemctl start|restart|stop|status rabbitmq-server
 
 # 2.管理命令行  用来在不使用web管理界面情况下命令操作RabbitMQ
-	rabbitmqctl  help  可以查看更多命令
+rabbitmqctl  help  可以查看更多命令
 
 # 3.插件管理命令行
-	rabbitmq-plugins enable|list|disable 
+rabbitmq-plugins enable|list|disable 
 ```
 
 ### 3.2 web管理界面介绍
@@ -322,13 +322,13 @@
 
 ##### 3. 参数的说明
 
-```java
-  channel.queueDeclare("hello",true,false,false,null);
-	'参数1':用来声明通道对应的队列
-  '参数2':用来指定是否持久化队列
-  '参数3':用来指定是否独占队列
-  '参数4':用来指定是否自动删除队列
-  '参数5':对队列的额外配置
+```bash
+channel.queueDeclare("hello",true,false,false,null);
+'参数1':用来声明通道对应的队列
+'参数2':用来指定是否持久化队列
+'参数3':用来指定是否独占队列
+'参数4':用来指定是否自动删除队列
+'参数5':对队列的额外配置
 ```
 
 ---
@@ -674,8 +674,8 @@ channel.basicConsume(queue,true,new DefaultConsumer(channel){
 
 ```xml
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-amqp</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-amqp</artifactId>
 </dependency>
 ```
 
@@ -683,14 +683,14 @@ channel.basicConsume(queue,true,new DefaultConsumer(channel){
 
 ```yml
 spring:
-  application:
-    name: springboot_rabbitmq
-  rabbitmq:
-    host: 10.15.0.9
-    port: 5672
-    username: ems
-    password: 123
-    virtual-host: /ems
+application:
+name: springboot_rabbitmq
+rabbitmq:
+host: 10.15.0.9
+port: 5672
+username: ems
+password: 123
+virtual-host: /ems
 ```
 
 `RabbitTemplate`  用来简化操作     使用时候直接在项目中注入即可使用
@@ -705,7 +705,7 @@ spring:
    
    @Test
    public void testHello(){
-     rabbitTemplate.convertAndSend("hello","hello world");
+       rabbitTemplate.convertAndSend("hello","hello world");
    }
    ```
 
@@ -854,7 +854,7 @@ spring:
    //topic
    @Test
    public void testTopic(){
-     rabbitTemplate.convertAndSend("topics","user.save.findAll","user.save.findAll 的消息");
+       rabbitTemplate.convertAndSend("topics","user.save.findAll","user.save.findAll 的消息");
    }
    ```
 
