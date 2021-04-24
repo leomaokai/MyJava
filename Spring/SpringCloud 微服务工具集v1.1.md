@@ -561,9 +561,9 @@ consul 客户端 将springcloud 客户端(微服务)
 ```properties
 server.port=8889
 spring.application.name=consulclient8889
-spring.cloud.consul.host=localhost														#注册consul服务的主机
-spring.cloud.consul.port=8500																	#注册consul服务的端口号
-spring.cloud.consul.discovery.register-health-check=false	    #关闭consu了服务的健康检查[不推荐]
+spring.cloud.consul.host=localhost#注册consul服务的主机
+spring.cloud.consul.port=8500 #注册consul服务的端口号
+spring.cloud.consul.discovery.register-health-check=false	    #关闭consul了服务的健康检查[不推荐]
 spring.cloud.consul.discovery.service-name=${spring.application.name} #指定注册的服务名称 默认就是应用名
 ```
 
@@ -1188,10 +1188,14 @@ public String saveProduct(Product product){
 ```
 
 ```properties
-feign.client.config.PRODUCTS.connectTimeout=5000  #配置指定服务连接超时
-feign.client.config.PRODUCTS.readTimeout=5000		  #配置指定服务等待超时
-#feign.client.config.default.connectTimeout=5000  #配置所有服务连接超时
-#feign.client.config.default.readTimeout=5000			#配置所有服务等待超时
+#配置指定服务连接超时
+feign.client.config.PRODUCTS.connectTimeout=5000  
+#配置指定服务等待超时
+feign.client.config.PRODUCTS.readTimeout=5000
+#配置所有服务连接超时
+#feign.client.config.default.connectTimeout=5000
+#配置所有服务等待超时
+#feign.client.config.default.readTimeout=5000 
 ```
 
 #### 4.OpenFeign调用详细日志展示
@@ -1211,9 +1215,12 @@ feign.client.config.PRODUCTS.readTimeout=5000		  #配置指定服务等待超时
 ```
 
 ```properties
-feign.client.config.PRODUCTS.loggerLevel=full  #开启指定服务日志展示
-#feign.client.config.default.loggerLevel=full  #全局开启服务日志展示
-logging.level.com.baizhi.feignclients=debug    #指定feign调用客户端对象所在包,必须是debug级别
+#开启指定服务日志展示
+feign.client.config.PRODUCTS.loggerLevel=full 
+#全局开启服务日志展示
+#feign.client.config.default.loggerLevel=full
+#指定feign调用客户端对象所在包,必须是debug级别
+logging.level.com.baizhi.feignclients=debug    
 ```
 
 ```markdown
@@ -1480,8 +1487,8 @@ public class ProductFallBack implements ProductClient {
 ```xml
 <!--引入hystrix dashboard 依赖-->
 <dependency>
-  <groupId>org.springframework.cloud</groupId>
-  <artifactId>spring-cloud-starter-netflix-hystrix-dashboard</artifactId>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix-dashboard</artifactId>
 </dependency>
 ```
 
@@ -1573,12 +1580,12 @@ public ServletRegistrationBean getServlet() {
 - 网关统一服务入口，可方便实现对平台众多服务接口进行管控，对访问服务的身份认证、防报文重放与防数据篡改、功能调用的业务鉴权、响应数据的脱敏、流量与并发控制，甚至基于API调用的计量或者计费等等。
 
 - 网关 =  路由转发 + 过滤器
-	`路由转发：接收一切外界请求，转发到后端的微服务上去；
-	`在服务网关中可以完成一系列的横切功能，例如权限校验、限流以及监控等，这些都可以通过过滤器完成
-	
+`路由转发：接收一切外界请求，转发到后端的微服务上去；
+`在服务网关中可以完成一系列的横切功能，例如权限校验、限流以及监控等，这些都可以通过过滤器完成
+
 # 2.为什么需要网关
- - 1.网关可以实现服务的统一管理
- - 2.网关可以解决微服务中通用代码的冗余问题(如权限控制,流量监控,限流等)
+- 1.网关可以实现服务的统一管理
+- 2.网关可以解决微服务中通用代码的冗余问题(如权限控制,流量监控,限流等)
 
 # 3.网关组件在微服务中架构
 ```
@@ -2045,24 +2052,29 @@ spring.cloud.config.server.git.default-label=master   #指定使用远程仓库�
 ```
 
 ```properties
-spring.cloud.config.discovery.enabled=true                #开启统一配置中心服务
-spring.cloud.config.discovery.service-id=configserver     #指定统一配置服务中心的服务唯一标识
-spring.cloud.config.label=master													#指定从仓库的那个分支拉取配置	
-spring.cloud.config.name=client														#指定拉取配置文件的名称
-spring.cloud.config.profile=dev														#指定拉取配置文件的环境
+#开启统一配置中心服务
+spring.cloud.config.discovery.enabled=true
+#指定统一配置服务中心的服务唯一标识
+spring.cloud.config.discovery.service-id=configserver
+#指定从仓库的那个分支拉取配置	
+spring.cloud.config.label=master
+#指定拉取配置文件的名称
+spring.cloud.config.name=client
+#指定拉取配置文件的环境
+spring.cloud.config.profile=dev
 ```
 
 ```markdown
 # 3.远程仓库创建配置文件
-- client.properties										[用来存放公共配置][]
+- client.properties			[用来存放公共配置][]
 	spring.application.name=configclient
 	spring.cloud.consul.host=localhost
 	spring.cloud.consul.port=8500
 
-- client-dev.properties  							[用来存放研发相关配置][注意:这里端口为例,以后不同配置分别存放]
+- client-dev.properties  	[用来存放研发相关配置][注意:这里端口为例,以后不同配置分别存放]
 	server.port=9099
 
-- client-prod.properties							[用来存放生产相关配置][]
+- client-prod.properties	[用来存放生产相关配置][]
 	server.port=9098
 ```
 
