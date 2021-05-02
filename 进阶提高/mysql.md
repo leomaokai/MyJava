@@ -376,7 +376,7 @@ select 字段... from 表名1,表名2... 	#交叉查询或笛卡尔积查询(这
 select 字段... from 表名1,表名2... where 条件语句		#等值联结查询
 select 字段... from 表名1 inner join 表名2 on 条件语句	#where类似
 左外联结
-select 字段... from 表1 left join 表2 on 条件语句		
+select 字段... from 表1 left join 表2 on 条件语句
 /*左外联结,以左表为主,左表数据全部显示,右表满足联结条件则显示,不满足联结条件则显示为NULL*/
 右外联结 
 表1 right join 表2 on 条件语句 #以右表为主

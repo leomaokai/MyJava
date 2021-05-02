@@ -168,7 +168,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 
 这里就涉及到桶数组长度为2的正整数幂的第二个优势了：当桶数组长度为2的正整数幂时，如果桶发生扩容（长度翻倍），则桶中的元素大概只有一半需要切换到新的桶中，另一半留在原先的桶中就可以，并且这个概率可以看做是均等的。
 
-![image-20210424143356397](Map.assets/image-20210424143356397.png)
+![image-20210424143356397](HashMap.assets/image-20210424143356397.png)
 
 如果在即将扩容的那个位上`key.hash()`的二进制值为0，则扩容后在桶中的地址不变，否则，扩容后最高位变为了1，新的地址可以快速计算出来`newIndex = table.length + oldIndex`
 
@@ -262,7 +262,7 @@ final Node<K,V>[] resize() {
 # HashMap 什么时候开辟 bucket 数组占用内存
 - 答：在第一次 put 的时候调用 resize 方法
 # HashMap 何时扩容？
-- 答：当 HashMap 中的元素熟练超过阈值时，阈值计算方式是 capacity * loadFactor，在 HashMap 中 loadFactor 是 0.75
+- 答：当 HashMap 中的元素数量超过阈值时，阈值计算方式是 capacity * loadFactor，在 HashMap 中 loadFactor 是 0.75
 # 桶中的元素链表何时转换为红黑树，什么时候转回链表，为什么要这么设计？
 - 答：当同一个桶中的元素数量大于等于 8 的时候元素中的链表转换为红黑树，反之，当桶中的元素数量小于等于 6 的时候又会转为链表，这样做的原因是避免红黑树和链表之间频繁转换，引起性能损耗
 # Java8 中为什么要引进红黑树，是为了解决什么场景的问题？

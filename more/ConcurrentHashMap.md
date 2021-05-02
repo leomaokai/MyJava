@@ -16,6 +16,10 @@
 ## 初始化
 
 ```java
+// initialCapacity 为所有实例的和(每个segment中entry的和)默认16
+// loadFactor 为负载因子
+// concurrencyLevel 为segment数组的大小,默认16
+// 其实默认所有entry和为 32,而不是initialCapacity的16
 public ConcurrentHashMap(int initialCapacity, float loadFactor, int concurrencyLevel) {
     if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
         throw new IllegalArgumentException();
@@ -29,19 +33,26 @@ public ConcurrentHashMap(int initialCapacity, float loadFactor, int concurrencyL
         ++sshift;
         ssize <<= 1;
     }
-    // 寻址需要两次哈希，哈希的高位用于确定segment，低位用户确定桶数组中的元素
+    // 寻址需要两次哈希，哈希的高位用于确定segment，低位用于确定桶数组中的元素
     this.segmentShift = 32 - sshift;
     this.segmentMask = ssize - 1;
     if (initialCapacity > MAXIMUM_CAPACITY)
         initialCapacity = MAXIMUM_CAPACITY;
+    // 向上取整求c
     int c = initialCapacity / ssize;
     if (c * ssize < initialCapacity)
         ++c;
+    // 得到 cap 2的n次幂
+    // cap 最小为 2
     int cap = MIN_SEGMENT_TABLE_CAPACITY;
     while (cap < c)
         cap <<= 1;
+    // new 一个 segment s0 对象
+    // 每一个segment中有 cap 个 entry
     Segment<K,V> s0 = new Segment<K,V>(loadFactor, (int)(cap * loadFactor), (HashEntry<K,V>[])new HashEntry[cap]);
+    // 初始化 segment 数组
     Segment<K,V>[] ss = (Segment<K,V>[])new Segment[ssize];
+    // 将 s0 对象放置到 ss[0] 中
     UNSAFE.putOrderedObject(ss, SBASE, s0); // ordered write of segments[0]
     this.segments = ss;
 }
@@ -296,7 +307,7 @@ static final <K,V> void setEntryAt(HashEntry<K,V>[] tab, int i, HashEntry<K,V> e
 
 因为在`put`中需要读取到最新的数据，因此接下来调用`UNSAFE.getObjectVolatile`获取到最新的头结点
 
-但是通过调用`UNSAFE.putOrderedObject`让变量写入主存的时间延迟到`put`方法的结尾，一来缩小临界区提升性能，而来也能保证其他线程读取到的是完整数据
+但是通过调用`UNSAFE.putOrderedObject`让变量写入主存的时间延迟到`put`方法的结尾，一来缩小临界区提升性能，二来也能保证其他线程读取到的是完整数据
 
 ```markdown
 # 细节九
