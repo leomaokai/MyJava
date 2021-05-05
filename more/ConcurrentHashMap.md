@@ -2,6 +2,8 @@
 
 [ConcurrentHashMap中有十个提升性能的细节，你都知道吗？ (qq.com)](https://mp.weixin.qq.com/s/BwSfp1yfQP-OJc9BqecPvQ)
 
+JDK1.7 的ConcurrentHashMap
+
 ![image-20210424151626317](ConcurrentHashMap.assets/image-20210424151626317.png)
 
 ```markdown
@@ -94,7 +96,7 @@ static final class HashEntry<K,V> {
 对一个变量执行unlock操作之前，必须先把此变量同步到主内存中（执行store和write操作）
 ```
 
-## 哈希
+## 哈希与put
 
 由于引入了`segment`，因此不管是调用`get`方法读还是调用`put`方法写，都需要做两次哈希，还记得在上文我们讲初始化的时候系统做了一件重要的事：
 
@@ -111,6 +113,7 @@ public V put(K key, V value) {
     Segment<K,V> s;
     if (value == null)
         throw new NullPointerException();
+    // 得到hash值
     int hash = hash(key);
     // 变量j代表着数据项处于segment数组中的第j项
     int j = (hash >>> segmentShift) & segmentMask;
@@ -133,14 +136,16 @@ public V put(K key, V value) {
 
 ```java
 // 初始化 Segment 数组
+// 多次使用 UNSAFE.getObjectVolatile 以及 CAS 确保segment对象由一个线程初始化
 private Segment<K,V> ensureSegment(int k) {
     final Segment<K,V>[] ss = this.segments;
     // raw offset 实际的字节偏移量
     long u = (k << SSHIFT) + SBASE;
     Segment<K,V> seg;
     if ((seg = (Segment<K,V>)UNSAFE.getObjectVolatile(ss, u)) == null) {
+        // 以初始化时创建的 s0 为原型
         // use segment 0 as prototype
-        Segment<K,V> proto = ss[0]; 
+        Segment<K,V> proto = ss[0];
         int cap = proto.table.length;
         float lf = proto.loadFactor;
         int threshold = (int)(cap * lf);
@@ -148,6 +153,7 @@ private Segment<K,V> ensureSegment(int k) {
         // recheck 再检查一次是否已经被初始化
         if ((seg = (Segment<K,V>)UNSAFE.getObjectVolatile(ss, u)) == null) { 
             Segment<K,V> s = new Segment<K,V>(lf, threshold, tab);
+            // 循环判断(妙啊)
             while ((seg = (Segment<K,V>)UNSAFE.getObjectVolatile(ss, u)) == null) {
                 // 使用 CAS 确保只被初始化一次
                 if (UNSAFE.compareAndSwapObject(ss, u, null, seg = s)) 
@@ -163,6 +169,10 @@ private Segment<K,V> ensureSegment(int k) {
 
 ```java
 final V put(K key, int hash, V value, boolean onlyIfAbsent) {
+    // 对当前的 segment 加锁
+    // 加锁方法 scanAndLockForPut() 分段锁
+    // lock() 为阻塞加锁, tryLock() 为非阻塞加锁
+    // scanAndLockForPut() 保证一定加锁成功加锁
     HashEntry<K,V> node = tryLock() ? null : scanAndLockForPut(key, hash, value); 
     V oldValue;
     try {
@@ -185,7 +195,8 @@ final V put(K key, int hash, V value, boolean onlyIfAbsent) {
             }
             else {
                 if (node != null)
-                    // node不为空说明已经在自旋等待时初始化了，注意调用的是setNext，不是直接操作next
+                    // node不为空说明已经在自旋等待时初始化了
+                    // 注意调用的是setNext，不是直接操作next
                     node.setNext(first); 
                 else
                     // 否则，在这里新建一个HashEntry
@@ -203,6 +214,7 @@ final V put(K key, int hash, V value, boolean onlyIfAbsent) {
             }
         }
     } finally {
+        // 解锁
         unlock();
     }
     return oldValue;
@@ -215,18 +227,28 @@ final V put(K key, int hash, V value, boolean onlyIfAbsent) {
 ```
 
 ```java
+// 保证一定加锁成功
 private HashEntry<K,V> scanAndLockForPut(K key, int hash, V value) {
     HashEntry<K,V> first = entryForHash(this, hash);
     HashEntry<K,V> e = first;
     HashEntry<K,V> node = null;
+    // 重试加锁次数
     int retries = -1; // negative while locating node
-    while (!tryLock()) { // 自旋等待
+    // 自旋等待加锁
+    // 若加锁失败,执行while里的代码
+    // 在等待加锁的过程中可以先生成 entry 对象
+    while (!tryLock()) { 
         HashEntry<K,V> f; // to recheck first below
+        // 三个分支
+        // 首先进入 retries < 0 的分支,遍历 entry 链表,创建 entry 对象
         if (retries < 0) {
-            if (e == null) { // 这个桶中还没有写入k-v项
-                if (node == null) // speculatively create node 直接创建一个新的节点
+            // 三个判断,遍历链表,创建 newEntry
+            // 这个桶中还没有写入k-v项
+            if (e == null) {
+                if (node == null) // speculatively create node
+                    // 直接创建一个新的节点
                     node = new HashEntry<K,V>(hash, key, value, null);
-                retries = 0;  
+                retries = 0;
             }
             // key值相等，直接跳出去尝试获取锁
             else if (key.equals(e.key))
@@ -234,11 +256,13 @@ private HashEntry<K,V> scanAndLockForPut(K key, int hash, V value) {
             else // 遍历链表
                 e = e.next;
         }
+        // 自旋等待超过一定次数之后只能挂起线程，阻塞等待了
         else if (++retries > MAX_SCAN_RETRIES) {
-            // 自旋等待超过一定次数之后只能挂起线程，阻塞等待了
             lock();
             break;
         }
+        // entry 链表被其它线程改变,通过比较头节点判断是否改变
+        // 并不是每次都判断头节点是否发生改变,retries偶数才判断
         else if ((retries & 1) == 0 && (f = entryForHash(this, hash)) != first) { 
             // 如果头节点改变了，则重置次数，继续自旋等待
             e = first = f; 
@@ -250,7 +274,7 @@ private HashEntry<K,V> scanAndLockForPut(K key, int hash, V value) {
 ```
 
 ```markdown
-- ConcurrentHashMap的策略是自旋MAX_SCAN_RETRIES次，如果还没有获取到锁则调用lock挂起阻塞等待，当然如果其他线程采用头插法改变了链表的头结点，则重置自旋等待次数。
+- ConcurrentHashMap的策略是自旋MAX_SCAN_RETRIES(默认64)次，如果还没有获取到锁则调用lock挂起阻塞等待，当然如果其他线程采用头插法改变了链表的头结点，则重置自旋等待次数。
 ```
 
 ```markdown

@@ -138,6 +138,8 @@ B+树：所有数据存放在叶子节点
 
 # JMM
 
+maven_java/my_test/src/main/java/tuling/demo01
+
 ![image-20210427223532815](tuling.assets/image-20210427223532815.png)
 
 > 线程真正操作的工作内存的数据是主内存中数据的副本
@@ -244,6 +246,8 @@ b = a; // volatile 读
 ```
 
 # Java并发锁
+
+maven_java/my_test/src/main/java/tuling/demo02
 
 ```java
 public class A {
@@ -399,6 +403,8 @@ public class LockUpgrade {
 
 # HashMap
 
+maven_java/my_test/src/main/java/tuling/demo03
+
 ```markdown
 # HashMap 发生哈希冲突采用链表形式
 - 数组中的引用始终指向链表的头节点
@@ -406,8 +412,508 @@ public class LockUpgrade {
 - jdk1.8 使用尾插法
 ```
 
-concurrentHashMap
+ConcurrentHashMap
 
 ![image-20210502182630392](tuling.assets/image-20210502182630392.png)
 
-51
+# 线程池
+
+maven_java/my_test/src/main/java/tuling/demo04
+
+```java
+public ThreadPoolExecutor(
+    int corePoolSize, // 核心线程数
+    int maximumPoolSize, // 最大线程数
+    long keepAliveTime, // 非核心线程数的存活时间
+    TimeUnit unit, // 时间单位
+    BlockingQueue<Runnable> workQueue, // 任务队列
+    ThreadFactory threadFactory, // 线程工厂
+    RejectedExecutionHandler handler // 拒绝策略
+){}
+```
+
+```java
+// newCachedThreadPool 最快
+// 无核心线程
+// MAX_VALUE 2^31-1 个非核心线程数
+// SynchronousQueue 同步队列,大小为1
+public static ExecutorService newCachedThreadPool() {
+    return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                  60L, TimeUnit.SECONDS,
+                                  new SynchronousQueue<Runnable>());
+}
+// 线程复用
+// 一个任务先进入同步队列后立刻被一个非核心线程执行
+// 不会出现内存溢出,但占用CPU资源
+```
+
+```java
+// newFixedThreadPool 慢
+// nThreads 个核心线程数
+// nThreads 个最大线程数
+// LinkedBlockingQueue 无限长队列 2^31-1
+public static ExecutorService newFixedThreadPool(int nThreads) {
+    return new ThreadPoolExecutor(nThreads, nThreads,
+                                  0L, TimeUnit.MILLISECONDS,
+                                  new LinkedBlockingQueue<Runnable>());
+}
+// 所有任务进入无限长队列,由n个核心线程执行,每次执行n个任务
+// 会出现内存溢出
+```
+
+```java
+// newSingleThreadExecutor 最慢
+// newSingleThreadExecutor 是 newFixedThreadPool 的单线程版本
+public static ExecutorService newSingleThreadExecutor() {
+    return new FinalizableDelegatedExecutorService
+        (new ThreadPoolExecutor(1, 1,
+                                0L, TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>()));
+}
+// 所有任务进入无限长队列,由1个核心线程执行,每次执行1个任务
+```
+
+```java
+// 自定义
+ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
+    10, 
+    20, 
+    0L, 
+    TimeUnit.MILLISECONDS, 
+    new ArrayBlockingQueue<>(10)
+);
+// 第 31 个任务会触发拒绝策略
+// 核心线程先执行任务
+// 之后的任务进入队列等待
+// 队列满后非核心线程开始执行任务
+// 队列再满后会触发拒绝策略
+```
+
+```markdown
+# 提交优先级和执行优先级
+## 提交优先级
+- 核心线程
+- 队列
+- 非核心线程
+## 执行优先级
+- 核心线程
+- 非核心线程
+- 队列
+* 先进队列的任务但后被执行
+```
+
+![image-20210503114624748](tuling.assets/image-20210503114624748.png)
+
+```java
+// 提交 execute 源码
+public void execute 源码(Runnable command) {
+    if (command == null)
+        throw new NullPointerException();
+
+    int c = ctl.get();
+    // 小于核心数,优先使用核心线程
+    if (workerCountOf(c) < corePoolSize) {
+        if (addWorker(command, true))
+            return;
+        c = ctl.get();
+    }
+    // 大于核心数,判断是否可以存放到队列
+    if (isRunning(c) && workQueue.offer(command)) {
+        int recheck = ctl.get();
+        if (! isRunning(recheck) && remove(command))
+            reject(command);
+        else if (workerCountOf(recheck) == 0)
+            addWorker(null, false);
+    }
+    // 使用非核心线程,使用失败则调用拒绝策略
+    else if (!addWorker(command, false))
+        reject(command);
+}
+```
+
+![image-20210503120213250](tuling.assets/image-20210503120213250.png)
+
+![image-20210503122027124](tuling.assets/image-20210503122027124.png)
+
+执行优先级的核心:先判断任务,再判断从队列中取任务
+
+# Spring
+
+手写Spring : maven_java/my_test/src/main/java/tuling/demo05
+
+```markdown
+# 创建 bean 的过程
+- class --> new 对象 --> 填充属性 --> Aware --> 初始化 --> AOP --> 放到单例池 --> bean 对象
+# bean 的生命周期
+## 实例化
+- refresh.finishBeanFactoryInitialization.preInstantiateSingletons.getBean.doGetBean.createBean
+- 实例化前  createBean.resolveBeforeInstantiation -> InstantiationAwareBeanPostProcessor
+- 实例化 doCreateBean.createBeanInstance -> instanceWrapper.getWrappedInstance -> Object bean
+- 实例化后 doCreateBean.populateBean.postProcessAfterInstantiation
+- 填充属性 doCreateBean.populateBean
+## 初始化
+- doCreateBean.initializeBean
+- 执行Aware initializeBean.invokeAwareMethods -> BeanNameAware
+- 初始化前 initializeBean.applyBeanPostProcessorsBeforeInitialization.BeanPostProcessor
+- 初始化  initializeBean.invokeInitMethods -> InitializingBean
+- 初始化后 initializeBean.applyBeanPostProcessorsAfterInitialization.BeanPostProcessor -> AOP
+## 将bean放到单例池
+```
+
+```markdown
+# BeanDefintion Bean定义
+- Scope: singleton prototype ...
+- Lazy
+- ...
+- 扫描包时,根据 class 上的注解生成对应的 BeanDefintion
+# BeanFactory Bean工厂
+```
+
+# SpringAOP
+
+spring_test/demo02
+
+与传统OOP面向对象编程逻辑是自上而下的开发,在这些自上而下的开发过程中会产生一些横切性问题,这些横切性问题不会影响到主业务代码的各个部分,难以维护.而AOP编程思想就是把这些问题和主业务逻辑分开,达到与主业务逻辑解耦的目的
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+```java
+@Configuration
+@Aspect
+@Slf4j
+public class AspectConfig {
+    @Pointcut("execution(* com.example.demo02.service.*.*(..)))")
+    private void pointcut() {
+    }
+    @Around("pointcut()")
+    public Object around(ProceedingJoinPoint point) throws Throwable {
+        long start = System.currentTimeMillis();
+        Object result = point.proceed();
+        long end = System.currentTimeMillis();
+        log.info("执行时间: {}", end - start);
+        return result;
+    }
+}
+
+//@SpringBootApplication
+@EnableAspectJAutoProxy
+@ComponentScan("com.example.demo02")
+public class Demo02Application {
+
+    public static void main(String[] args) {
+        // SpringApplication.run(Demo02Application.class, args);
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Demo02Application.class);
+
+        // UserService 是接口, JDK 动态代理
+        UserService bean = context.getBean(UserService.class);
+        bean.login(10);
+        // StudentServiceImpl 没有实现接口, CGlib 动态代理
+        StudentServiceImpl studentService = context.getBean("studentService", StudentServiceImpl.class);
+        studentService.student();
+    }
+}
+```
+
+![image-20210504151445345](tuling.assets/image-20210504151445345.png)
+
+![image-20210504151531017](tuling.assets/image-20210504151531017.png)
+
+代理对象若是接口，则使用 JDK 动态代理，代理对象是类，则使用 CGLIB 动态代理
+
+```markdown
+# AOP 实现
+- 初始化后 initializeBean.applyBeanPostProcessorsAfterInitialization
+- Spring的后置处理器 BeanPostProcessor
+# AOP 实现方式的源码位置
+- AbstractAutoProxyCreator.postProcessAfterInitialization
+- postProcessAfterInitialization.wrapIfNecessary.createProxy
+- createProxy.getProxy.createAopProxy.createAopProxy
+```
+
+一共有7个后置处理器，第4个( AnnotationAwareAspectJAutoProxyCreator) 处理 AOP
+
+![image-20210504161956892](tuling.assets/image-20210504161956892.png)
+
+```java
+// 动态代理方式的核心代码
+public AopProxy createAopProxy(AdvisedSupport config) {
+    if (NativeDetector.inNativeImage() 
+        || !config.isOptimize() 
+        && !config.isProxyTargetClass() 
+        && !this.hasNoUserSuppliedProxyInterfaces(config)) {
+        // isOptimize 默认 fasle
+        // isProxyTargetClass 判断用户配置,默认 fasle
+        // hasNoUserSuppliedProxyInterfaces 判断是否为接口，接口返回 false
+        return new JdkDynamicAopProxy(config);
+    } else {
+        
+        Class<?> targetClass = config.getTargetClass();
+        
+        if (targetClass == null) {
+        } else {
+            
+            // isInterface 是否为接口
+            // isProxyClass 是否已是代理类
+            return (AopProxy)
+                (
+                !targetClass.isInterface() 
+                && !Proxy.isProxyClass(targetClass
+                                      ) ? 
+                new ObjenesisCglibAopProxy(config) 
+                : new JdkDynamicAopProxy(config));
+        }
+    }
+}
+```
+
+```markdown
+# 为什么接口用 JDK 动态代理
+- 代理类要继承原始类
+- JDK 动态代理需要继承 Proxy 类
+- Java 不能多继承
+- 但是代理类可以实现原始接口并继承 Proxy 类
+```
+
+# Mybatis
+
+mybatis_java/myabtis_06
+
+ORM框架：Object Relational Mapping 用于实现面向对象编程语言中不容类型系统的数据之间的转换
+
+![image-20210504234415382](tuling.assets/image-20210504234415382.png)
+
+核心: 解析`mybatis-config.xml`文件,解析文件中的标签
+
+```java
+public static void main(String[] args) throws IOException {
+    String resource = "mybatis-config.xml";
+    InputStream inputStream = Resources.getResourceAsStream(resource);
+    // SqlSessionFactoryBuilder 获取数据源与SQL语句
+    SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+    // openSession 得到执行器
+    SqlSession session = sqlSessionFactory.openSession();
+    // selectOne 访问数据库
+    Blog blog = session.selectOne("com.kai.mapper.BlogMapper.selectOne", 1);
+    System.out.println(blog);
+}
+```
+
+**SqlSessionFactoryBuilder ---> parse ---> parseConfiguration**
+
+```java
+// 全局配置文件方法 parseConfiguration
+// parse 会分析 mybatis-config.xml 文件
+// 将 configuration 标签内的内容保存在 XNode root 中
+public Configuration parse() {
+    if (parsed) {
+        throw new BuilderException("Each XMLConfigBuilder can only be used once.");
+    }
+    parsed = true;
+    parseConfiguration(parser.evalNode("/configuration"));
+    return configuration;
+}
+// parseConfiguration 会对每个标签进行解析
+// 因为代码的解析顺序已经确定,所以配置文件的配置顺序一定
+private void parseConfiguration(XNode root) {
+    try {
+        // properties 标签解析
+        propertiesElement(root.evalNode("properties"));
+        Properties settings = settingsAsProperties(root.evalNode("settings"));
+        loadCustomVfs(settings);
+        loadCustomLogImpl(settings);
+        typeAliasesElement(root.evalNode("typeAliases"));
+        pluginElement(root.evalNode("plugins"));
+        objectFactoryElement(root.evalNode("objectFactory"));
+        objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
+        reflectorFactoryElement(root.evalNode("reflectorFactory"));
+        settingsElement(settings);
+        // 数据源标签 environments 解析
+        environmentsElement(root.evalNode("environments"));
+        databaseIdProviderElement(root.evalNode("databaseIdProvider"));
+        typeHandlerElement(root.evalNode("typeHandlers"));
+        mapperElement(root.evalNode("mappers"));
+    } catch (Exception e) {
+        throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
+    }
+}
+```
+
+## 获取数据源
+
+```markdown
+- SqlSessionFactoryBuilder.parse.parseConfiguration
+- .environmentsElement.dataSourceElement.resolveClass
+- dataSourceElement.getDataSource -> setEnvironment
+- setEnvironment 将得到的 datasource 赋值给对应的类
+```
+
+![image-20210505111306539](tuling.assets/image-20210505111306539.png)
+
+----
+
+有什么样的属性什么样的标签,就会有一一对应的具体的类
+
+![image-20210505111647050](tuling.assets/image-20210505111647050.png)
+
+![image-20210505111703744](tuling.assets/image-20210505111703744.png)
+
+## 执行语句
+
+```markdown
+- .mapperElement.mapperParser.parse()
+- .configurationElement.buildStatementFromContext 获得SQL语句
+- 创建 XMLStatementBuilder 对象
+- .parseStatementNode 解析 select 标签属性
+- .addMappedStatement 通过建造者模式给属性赋值并全局配置类赋值
+```
+
+![image-20210505113650969](tuling.assets/image-20210505113650969.png)
+
+----
+
+![image-20210505111952772](tuling.assets/image-20210505111952772.png)
+
+谁解析 mappers 标签谁执行 mapper.xml 文件里的语句
+
+![image-20210505112414968](tuling.assets/image-20210505112414968.png)
+
+> Mybatis 加载 mapper 文件有 4 种方式  package resource url class
+
+![image-20210505112621306](tuling.assets/image-20210505112621306.png)
+
+## 操作
+
+```markdown
+- SqlSessionFactory.openSession.openSessionFromDataSource.getEnvironment
+- .newExecutor 创建执行器
+```
+
+```java
+public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    if (ExecutorType.BATCH == executorType) {
+        executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+        executor = new ReuseExecutor(this, transaction);
+    } else {
+        // 默认使用简单执行器
+        executor = new SimpleExecutor(this, transaction);
+    }
+    if (cacheEnabled) {
+        // 默认开启一级缓存
+        executor = new CachingExecutor(executor);
+    }
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+}
+```
+
+----
+
+```markdown
+- session.selectOne.selectList.getMappedStatement
+- query.getBoundSql 得到需要执行的SQL
+- createCacheKey 创建缓存的 Key
+- query
+- delegate.query
+- queryFromDatabase.doQuery.newStatementHandler.RoutingStatementHandler 选择对应的执行器
+- doQuery.prepareStatement.getConnection 得到连接器
+- doQuery.query 得到 PreparedStatement.execute
+- query.handleResultSets.getFirstResultSet.getResultSet 得到查询结果
+- getFirstResultSet.ResultSetWrapper 结果映射(ORM)
+- handleResultSets.handleResultSet.handleRowValues.handleRowValuesForSimpleResultMap
+- getRowValue.applyAutomaticMappings.getResult.getNullableResult 结果处理,得到最后的Java结果
+```
+
+![image-20210505145259946](tuling.assets/image-20210505145259946.png)
+
+> 注意 Sql 语句 , #{} 变为 ?
+
+```java
+// query
+public <E> List<E> query(...) {
+    // 判断是否开启二级缓存,默认先查二级缓存
+    Cache cache = ms.getCache();
+    if (cache != null) {
+        // ...
+    }
+    // cache == null 执行 delegate.query   装饰器模式,delegate为执行器
+    return delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+}
+
+// delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+public <E> List<E> query(...) throws {
+    // ...
+    try {
+        queryStack++;
+        // 先从本地缓存获取
+        list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
+        if (list != null) {
+            // 缓存存在
+            handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
+        } else {
+            // 从数据库中查询
+            list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
+        }
+    } finally {
+        queryStack--;
+    }
+    if (queryStack == 0) {
+        for (DeferredLoad deferredLoad : deferredLoads) {
+            deferredLoad.load();
+        }
+        // issue #601
+        deferredLoads.clear();
+        if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
+            // issue #482
+            clearLocalCache();
+        }
+    }
+    return list;
+}
+
+// queryFromDatabase
+private <E> List<E> queryFromDatabase(...) {
+    List<E> list;
+    // 将 key 放到本地缓存
+    localCache.putObject(key, EXECUTION_PLACEHOLDER);
+    try {
+        list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
+    } finally {
+        localCache.removeObject(key);
+    }
+    // 刷新缓存
+    localCache.putObject(key, list);
+    if (ms.getStatementType() == StatementType.CALLABLE) {
+        localOutputParameterCache.putObject(key, parameter);
+    }
+    return list;
+}
+```
+
+```java
+// 结果映射(ORM)
+private final List<String> columnNames = new ArrayList<>();
+private final List<String> classNames = new ArrayList<>();
+private final List<JdbcType> jdbcTypes = new ArrayList<>();
+public ResultSetWrapper(...){
+    final int columnCount = metaData.getColumnCount();
+    for (int i = 1; i <= columnCount; i++) {
+        columnNames.add(...);
+        jdbcTypes.add(...);
+        classNames.add(...);
+    }
+}
+```
+
+![image-20210505170007234](tuling.assets/image-20210505170007234.png)
+
+# Redis
+
