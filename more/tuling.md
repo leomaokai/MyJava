@@ -917,3 +917,153 @@ public ResultSetWrapper(...){
 
 # Redis
 
+## 分布式锁
+
+spring_test/demo03
+
+![image-20210506223314315](tuling.assets/image-20210506223314315.png)
+
+```markdown
+- 分布式锁实际是将高并发串行化
+# 高并发分布式锁如何实现
+- 分段锁 (ConcurrentHashMap)
+- 将 200 个库存分为 10 份,每 20 个为一份
+- 高并发访问时,优先访问没有加锁的那一份
+```
+
+```markdown
+# 缓存与数据库双写不一致
+- 延时双删,无法完全解决问题,删除时间无法评估
+- 内存队列,将对key的操作串行化执行,性能低
+- 分布式锁,对同一个key添加锁,串行化执行,依然存在性能问题
+```
+
+![image-20210510190954602](tuling.assets/image-20210510190954602.png)
+
+![image-20210510191436242](tuling.assets/image-20210510191436242.png)
+
+```markdown
+# 优化
+- 读多写少
+- - 读写锁优化分布式锁
+- 读多写多
+- - 中间件 canal
+- - 不用缓存
+```
+
+## 应用
+
+![image-20210510225324378](tuling.assets/image-20210510225324378.png)
+
+**string**
+
+```markdown
+# 单值缓存
+- set key value
+- get key
+# 对象缓存
+- set user:id value(json格式)
+- mset user:id:name wmk user:id:age 18
+- mget user:id:name user:id:age
+# 分布式锁
+- setnx product:id true // 返回1代表获取锁成功,0失败
+- del product:id // 释放锁
+- set product:id true ex 10 nx // 防止程序意外终止导致死锁
+# 计数器
+- incr article:readcount:id
+- get article:readcount:id
+# 分布式系统全局序列号
+- incrby orderid 100 // 一次性生成100个id
+```
+
+**hash**
+
+```markdown
+# 对象缓存
+- 外层 key 为 user(表名), 内层 key 为 Id:字段
+- 对象的某一个字段经常修改,使用 hash 结构更方便
+- hmset user {userId}:name wmk {userId}:age 18
+- hmget user {id}:name {id}:age
+# 电商购物车
+- 以用户 id 为 key
+- 商品 id 为 field
+- 商品数量为 value
+* 购物车操作
+- 添加商品: hset user:id product:id 1
+- 添加数量: hincrby user:id product:id 1
+- 商品总数: hlen user:id
+- 删除商品: hdel user:id product:id
+- 获取购物车所有商品: hgetall user:id
+```
+
+![image-20210510220253700](tuling.assets/image-20210510220253700.png)
+
+**list**
+
+```markdown
+# 常用的数据结构,分布式数据结构
+- stack = lpush + lpop
+- queue = lpush + rpop
+- blocking mq = lpush + brpop
+# 微博微信公共号消息流
+- 使用数据库需要进行大量数据的频繁排序操作
+- a 关注 b 和 c
+- b 发微博,消息id为 123
+* lpush msg:{aId} 123
+- c 发微博,消息id为 456
+* lpush msg:{aId} 456
+- a 查看最新的5条消息
+* lrange msg:{aId} 0 4
+```
+
+**set**
+
+```markdown
+# 微信抽奖小程序
+- 点击参与抽奖加入集合
+* sadd key userId
+- 查看参与抽奖所有用户
+* smembers key
+- 抽取count名中奖者
+* srandmember key [count]  /  spop key [count]
+# 微信微博点赞,收藏,标签
+- 点赞
+* sadd like:{msgId} {userId}
+- 取消点赞
+* srem like:{msgId} {userId}
+- 检查用户是否点过赞
+* sismember like:{msgId} {userId}
+- 获取点赞的用户列表
+* smembers like:{msgId}
+- 获取点赞的用户数
+* scard like:{msgId}
+# 集合操作实现微博微信关注模型
+- 诸葛关注的人
+- zhugeSet -> {goujia, xushu}
+- 杨过关注的人
+- yangguoSet -> {zhuge, baiqi, guojia, xushu}
+- 郭嘉关注的人
+- guojia -> {zhuge, yangguo, baiqi, xushu, xunyu}
+- 诸葛和杨过共同关注(交集)
+* sinter zhugeSet yangguoSet ---> {guojia, xushu}
+- 诸葛关注的人也关注他
+* sismember guojiaSet yangguo
+* sismember xushuSet yangguo
+- 诸葛可能认识的人(差集)
+* sdiff yangguoSet zhugeSet ---> {zhuge, baiqi}
+```
+
+**ZSet**
+
+```markdown
+# 排行榜
+- 点击新闻
+* zincrby hotNews:20210101 1 新年好
+- 展示当日排行前十
+* zrevrange hotNews:20210101 0 9 withscores
+- 七日搜索榜单计算
+* zunionstore hotNews:20210101-2021017 7
+- 展示七日排行前十
+* zrevrange hotNews:20210101-20210107 0 9 withscores
+```
+
